@@ -67,7 +67,8 @@ export function ConfirmButton({ label, confirm, onConfirm, danger, small, disabl
   label: string; confirm: string; onConfirm: () => void | Promise<void>; danger?: boolean; small?: boolean; disabled?: boolean
 }) {
   const [asking, setAsking] = useState(false)
-  const cls = `ph-btn${danger ? ' ph-btn-danger' : ' ph-btn-secondary'}${small ? ' ph-btn-sm' : ''}`
+  // In a list, the first step is quiet (a list of red buttons shouts); the red is kept for the step that acts. A page-level action stays red.
+  const cls = small ? 'ph-btn ph-btn-ghost ph-btn-sm' : `ph-btn${danger ? ' ph-btn-danger' : ' ph-btn-secondary'}`
   if (!asking) return <button className={cls} disabled={disabled} onClick={() => setAsking(true)}>{label}</button>
   return (
     <span className="pe-confirm" role="group" aria-label={confirm}>

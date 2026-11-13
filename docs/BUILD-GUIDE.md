@@ -21,7 +21,7 @@ Work through the steps in order. Stop at every **GATE** and wait for Connor. Ite
 | Step 1 | Done 2026-11-13 (BUILD-LOG.md) |
 | Step 2 | Done 2026-11-13 (BUILD-LOG.md): database, directory, the integrator's API, the link on Postgres |
 | Step 3 | Done 2026-11-13 (BUILD-LOG.md): the web app on photon-ui and the shared sign-in; templates for offices, schools, multifamily and gates (Connor: all are likely clients). The commissioning record moved to Step 6 |
-| Step 4 | Done 2026-11-13 (BUILD-LOG.md): door events in PhotonEntry's words; to PhotonGuard (sent to Guard's documented ingest; Guard's own ingest is not built yet, so not tried against it); the PhotonConsole feed. Next: editing schedules, groups and holidays in the web app (Connor) |
+| Step 4 | Done 2026-11-13 (BUILD-LOG.md): door events in PhotonEntry's words; to PhotonGuard (sent to Guard's documented ingest; Guard's own ingest is not built yet, so not tried against it); the PhotonConsole feed. Then (Connor, the same day): editing schedules, groups and holidays in the web app, done |
 
 **Dev ports** (they collide with no other agent): API and link **8133**, simulator **8134**, web **5193**.
 

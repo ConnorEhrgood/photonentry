@@ -232,3 +232,17 @@ first and end to end; photon-ui and the shared `@photon/ui/auth` sign-in from th
   alarms, and bindings that may be named `entry-door-<id>`.
 - **Against a real PhotonConsole:** a PhotonEntry data source in Console is Console's work (its own session). The feed's shape follows
   PhotonEdge's and PhotonBoard's feeds, which Console already reads.
+
+## 2026-11-13: editing access in the web app (right after Step 4, as Connor asked)
+
+**Built** (`web/src/pages/AccessEdit.tsx`, Access page):
+- **Schedules:** add, change and remove. Days of the week, any number of time windows (an end of 00:00 means midnight, sent as `24:00`),
+  and off on holidays or not. A schedule still in use is refused with the names of what uses it.
+- **Access groups:** add, change and remove, rule by rule: which doors, at all times or under a schedule.
+- **Holidays:** add a day, add a year's US business or federal holidays without doubling any (a new endpoint,
+  `GET /holidays/{us-business|us-federal}/{year}`), remove one.
+- **After any change:** "Saved. The doors keep their current settings until you publish." Only admins (and owners) see the controls.
+- **Remove buttons:** a quiet first step in lists; the red is kept for the confirming "Yes" (a page of red buttons was loud in the
+  screenshots).
+
+**Verified:** 144 web tests (each editor, its refusals, a viewer's read-only view) and the API suite; screenshots at the three sizes, looked at.

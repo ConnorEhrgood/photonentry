@@ -61,3 +61,13 @@ def site_templates(who: Who = Depends(current_person)) -> List[Dict[str, Any]]:
     """The site templates (app/templates.py): what each creates, for the setup wizard."""
     from app import templates
     return templates.catalog()
+
+
+@catalog_router.get("/holidays/{kind}/{year}")
+def holiday_list(kind: str, year: int, who: Who = Depends(current_person)) -> List[Dict[str, str]]:
+    """The US business or federal holidays of a year, with weekend observance (app/templates.py), for adding to a site's calendar."""
+    from fastapi import HTTPException
+    from app import templates
+    if kind not in ("us-business", "us-federal") or not 2000 <= year <= 2100:
+        raise HTTPException(404, "Not found")
+    return [{"day": d.isoformat(), "name": n} for d, n in templates.holidays(kind, year)]

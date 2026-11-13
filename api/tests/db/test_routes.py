@@ -393,3 +393,11 @@ def test_every_template_applies_and_publishes(client, world, link, key, slots):
     settings = link.store.latest(cid)[1]
     assert len(settings["access_profiles"]) == len(made["groups"]) and len(settings["doors"]) == 2
     assert any(d["DoorScheduleConfiguration"] for d in settings["doors"])          # an option that unlocks a door on a schedule
+
+
+def test_holiday_lists(client, world):
+    got = client.get("/holidays/us-business/2027", headers=auth("a-viewer")).json()
+    assert got[0] == {"day": "2027-01-01", "name": "New Year's Day"} and len(got) == 7
+    assert len(client.get("/holidays/us-federal/2027", headers=auth("a-viewer")).json()) == 11
+    assert client.get("/holidays/us-other/2027", headers=auth("a-viewer")).status_code == 404
+    assert client.get("/holidays/us-business/1999", headers=auth("a-viewer")).status_code == 404
