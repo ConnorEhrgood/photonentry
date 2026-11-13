@@ -115,3 +115,27 @@ describe('time words', () => {
     expect(ago('2026-11-10T12:00:00Z', n)).toBe('3 days ago')
   })
 })
+
+describe('every template in the wizard', () => {
+  it('offers the four kinds of site from the API catalog, with each one’s note and options', async () => {
+    const { readFileSync } = await import('node:fs')
+    const catalog = JSON.parse(readFileSync(`${process.cwd()}/../contract/templates/catalog.json`, 'utf8')) as { key: string; name: string; note: string; options: { label: string }[] }[]
+    const user = userEvent.setup()
+    renderApp(<Routes><Route path="*" element={<App />} /></Routes>, { route: '/setup', me: meWith(OWNER), routes: {
+      [`GET ${T}/sites`]: SITES, [`GET ${T}/controllers`]: [{ id: 'c1', site_id: 's1', name: 'Gate box', state: 'claimed', device: {}, inventory: { doors: [{ token: 'door1', name: 'Door 1', access_points: [] }] },
+        settings: { latest: 0, applied: 0, error: '', current: true }, last_seen: null, health: {} }],
+      'GET /templates': catalog, [`GET ${T}/sites/s1/doors`]: [],
+    } })
+    await user.click(await screen.findByRole('button', { name: 'Next: choose a template' }))
+    expect((await screen.findAllByRole('radio')).length).toBe(4)
+    for (const t of catalog.filter((x) => x.note)) {
+      await user.click(screen.getByRole('radio', { name: new RegExp(t.name) }))
+      expect(screen.getByText(t.note)).toBeInTheDocument()
+      for (const o of t.options) expect(screen.getByLabelText(o.label)).toBeInTheDocument()
+    }
+    await user.click(screen.getByRole('radio', { name: /Gate/ }))
+    await user.click(screen.getByRole('button', { name: 'Next: which door is which' }))
+    expect(await screen.findByLabelText('Vehicle gate')).toHaveValue('c1|door1')
+    expect(screen.getByLabelText('Pedestrian gate (if there is one)')).toHaveValue('')
+  })
+})

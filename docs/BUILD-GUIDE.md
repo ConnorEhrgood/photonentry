@@ -20,6 +20,7 @@ Work through the steps in order. Stop at every **GATE** and wait for Connor. Ite
 | Repo `~/projects/photonaccess` | Git; remote `origin` = github.com/ConnorEhrgood/photonentry (private, created 2026-11-13). Push to `main` as you go, never force-push |
 | Step 1 | Done 2026-11-13 (BUILD-LOG.md) |
 | Step 2 | Done 2026-11-13 (BUILD-LOG.md): database, directory, the integrator's API, the link on Postgres |
+| Step 3 | Done 2026-11-13 (BUILD-LOG.md): the web app on photon-ui and the shared sign-in; templates for offices, schools, multifamily and gates (Connor: all are likely clients). The commissioning record moved to Step 6 |
 
 **Dev ports** (they collide with no other agent): API and link **8133**, simulator **8134**, web **5193**.
 
@@ -87,12 +88,13 @@ Testable with no hardware and no database.
 5. Tenant-isolation tests for every route; `scripts/remote-test.sh` on LXC 800 (Postgres 16 in Docker); 100% branch coverage on the CRITICAL
    modules (`link/signing`, `link/service`, `access`, `rls`, the compiler).
 
-## 3. Step 3: the integrator's web app
+## 3. Step 3: the integrator's web app (done 2026-11-13)
 
 - Site wizard: claim controllers, map doors, commission doors (ARCHITECTURE §7.2).
 - Templates; cardholders with bulk import; groups, schedules, holidays; door events; the fleet page.
 - Every page reviewed at 1440×900, 820×1180 and 390×844.
-- **GATE 3 (Connor):** the first customer types (ARCHITECTURE §13.4) decide the first templates.
+- ~~GATE 3~~ answered 2026-11-13: templates for all four kinds of site (offices, schools, multifamily, gates).
+- The commissioning record (ARCHITECTURE §7.2) is built with the licenses in Step 6.
 
 ## 4. Step 4: events onward
 

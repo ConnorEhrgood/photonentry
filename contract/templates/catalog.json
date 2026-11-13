@@ -1,0 +1,537 @@
+[
+  {
+    "key": "office",
+    "name": "Office",
+    "description": "Staff in extended hours, managers at all times, IT in the server room, the cleaning crew in the evening.",
+    "note": "",
+    "holidays": "us-business",
+    "options": [
+      {
+        "key": "unlock_main",
+        "label": "Unlock the main entrance during business hours (otherwise visitors use the intercom)",
+        "default": false
+      }
+    ],
+    "slots": [
+      {
+        "key": "main_entrance",
+        "name": "Main entrance",
+        "hint": "The front door visitors use (often with the intercom)",
+        "required": true
+      },
+      {
+        "key": "staff_entrance",
+        "name": "Staff entrance",
+        "hint": "A side or back door for staff",
+        "required": false
+      },
+      {
+        "key": "suite_door",
+        "name": "Suite door",
+        "hint": "An inner door, if the office is a suite in a larger building",
+        "required": false
+      },
+      {
+        "key": "server_room",
+        "name": "Server room",
+        "hint": "The IT closet or server room",
+        "required": false
+      }
+    ],
+    "schedules": [
+      {
+        "key": "business",
+        "name": "Business hours",
+        "windows": [
+          {
+            "days": [
+              "mo",
+              "tu",
+              "we",
+              "th",
+              "fr"
+            ],
+            "start": "08:00",
+            "end": "18:00"
+          }
+        ],
+        "on_holidays": "off"
+      },
+      {
+        "key": "extended",
+        "name": "Extended hours",
+        "windows": [
+          {
+            "days": [
+              "mo",
+              "tu",
+              "we",
+              "th",
+              "fr"
+            ],
+            "start": "06:00",
+            "end": "22:00"
+          },
+          {
+            "days": [
+              "sa"
+            ],
+            "start": "08:00",
+            "end": "14:00"
+          }
+        ],
+        "on_holidays": "off"
+      },
+      {
+        "key": "cleaning",
+        "name": "Cleaning crew hours",
+        "windows": [
+          {
+            "days": [
+              "mo",
+              "tu",
+              "we",
+              "th",
+              "fr"
+            ],
+            "start": "18:00",
+            "end": "23:00"
+          }
+        ],
+        "on_holidays": "normal"
+      }
+    ],
+    "groups": [
+      {
+        "key": "staff",
+        "name": "Staff",
+        "description": "Every employee: the entrances and the suite, in extended hours"
+      },
+      {
+        "key": "managers",
+        "name": "Managers",
+        "description": "The entrances and the suite at all times"
+      },
+      {
+        "key": "it",
+        "name": "IT",
+        "description": "The server room at all times (add IT staff to Staff as well)"
+      },
+      {
+        "key": "cleaning",
+        "name": "Cleaning crew",
+        "description": "The entrances and the suite in the evening"
+      }
+    ]
+  },
+  {
+    "key": "school",
+    "name": "School",
+    "description": "Staff in staff hours, administrators at all times, custodians early to late every day, after-school programs at the gym.",
+    "note": "Add the school's own breaks (winter, spring, teacher days) to the holidays after applying: the template adds only the federal holidays.",
+    "holidays": "us-federal",
+    "options": [
+      {
+        "key": "unlock_arrival",
+        "label": "Unlock the main entrance at arrival and dismissal (otherwise it stays locked and visitors use the intercom)",
+        "default": false
+      },
+      {
+        "key": "unlock_gym_events",
+        "label": "Unlock the gym entrance after school",
+        "default": false
+      }
+    ],
+    "slots": [
+      {
+        "key": "main_entrance",
+        "name": "Main entrance",
+        "hint": "The front door, by the office",
+        "required": true
+      },
+      {
+        "key": "staff_entrance",
+        "name": "Staff entrance",
+        "hint": "The staff or parking-lot door",
+        "required": false
+      },
+      {
+        "key": "side_door",
+        "name": "Side door",
+        "hint": "Another exterior door staff use",
+        "required": false
+      },
+      {
+        "key": "gym_entrance",
+        "name": "Gym entrance",
+        "hint": "The door after-school programs and evening events use",
+        "required": false
+      },
+      {
+        "key": "office_door",
+        "name": "Office door",
+        "hint": "The main office or records room",
+        "required": false
+      }
+    ],
+    "schedules": [
+      {
+        "key": "staff_hours",
+        "name": "Staff hours",
+        "windows": [
+          {
+            "days": [
+              "mo",
+              "tu",
+              "we",
+              "th",
+              "fr"
+            ],
+            "start": "06:00",
+            "end": "18:00"
+          }
+        ],
+        "on_holidays": "off"
+      },
+      {
+        "key": "arrival",
+        "name": "Arrival and dismissal",
+        "windows": [
+          {
+            "days": [
+              "mo",
+              "tu",
+              "we",
+              "th",
+              "fr"
+            ],
+            "start": "07:30",
+            "end": "08:15"
+          },
+          {
+            "days": [
+              "mo",
+              "tu",
+              "we",
+              "th",
+              "fr"
+            ],
+            "start": "14:45",
+            "end": "15:30"
+          }
+        ],
+        "on_holidays": "off"
+      },
+      {
+        "key": "after_school",
+        "name": "After school",
+        "windows": [
+          {
+            "days": [
+              "mo",
+              "tu",
+              "we",
+              "th",
+              "fr"
+            ],
+            "start": "15:00",
+            "end": "21:00"
+          },
+          {
+            "days": [
+              "sa"
+            ],
+            "start": "08:00",
+            "end": "16:00"
+          }
+        ],
+        "on_holidays": "off"
+      },
+      {
+        "key": "custodial",
+        "name": "Custodial hours",
+        "windows": [
+          {
+            "days": [
+              "mo",
+              "tu",
+              "we",
+              "th",
+              "fr",
+              "sa",
+              "su"
+            ],
+            "start": "05:00",
+            "end": "23:00"
+          }
+        ],
+        "on_holidays": "normal"
+      }
+    ],
+    "groups": [
+      {
+        "key": "staff",
+        "name": "Staff",
+        "description": "Teachers and staff: the exterior doors in staff hours"
+      },
+      {
+        "key": "administrators",
+        "name": "Administrators",
+        "description": "Every door at all times"
+      },
+      {
+        "key": "office",
+        "name": "Office staff",
+        "description": "The office door in staff hours (add them to Staff as well)"
+      },
+      {
+        "key": "custodians",
+        "name": "Custodians",
+        "description": "Every door, early to late, every day"
+      },
+      {
+        "key": "programs",
+        "name": "After-school programs",
+        "description": "The gym entrance after school"
+      }
+    ]
+  },
+  {
+    "key": "multifamily",
+    "name": "Multifamily",
+    "description": "Residents at the lobby and garage at all times and the amenities in their hours, staff and maintenance everywhere, vendors in the day.",
+    "note": "Give each resident their unit number as their reference, so a move-out is one search away.",
+    "holidays": "us-business",
+    "options": [
+      {
+        "key": "unlock_office",
+        "label": "Unlock the leasing office during office hours",
+        "default": false
+      }
+    ],
+    "slots": [
+      {
+        "key": "lobby",
+        "name": "Lobby entrance",
+        "hint": "The front door residents and visitors use (with the intercom)",
+        "required": true
+      },
+      {
+        "key": "garage",
+        "name": "Garage door",
+        "hint": "The parking garage's pedestrian or vehicle door",
+        "required": false
+      },
+      {
+        "key": "package_room",
+        "name": "Package room",
+        "hint": "Where deliveries are left",
+        "required": false
+      },
+      {
+        "key": "amenity",
+        "name": "Amenity",
+        "hint": "The gym, pool or clubroom",
+        "required": false
+      },
+      {
+        "key": "leasing_office",
+        "name": "Leasing office",
+        "hint": "The management office",
+        "required": false
+      },
+      {
+        "key": "mechanical",
+        "name": "Mechanical room",
+        "hint": "Boiler, electrical or roof access",
+        "required": false
+      }
+    ],
+    "schedules": [
+      {
+        "key": "amenity_hours",
+        "name": "Amenity hours",
+        "windows": [
+          {
+            "days": [
+              "mo",
+              "tu",
+              "we",
+              "th",
+              "fr",
+              "sa",
+              "su"
+            ],
+            "start": "06:00",
+            "end": "23:00"
+          }
+        ],
+        "on_holidays": "normal"
+      },
+      {
+        "key": "package_hours",
+        "name": "Package room hours",
+        "windows": [
+          {
+            "days": [
+              "mo",
+              "tu",
+              "we",
+              "th",
+              "fr",
+              "sa",
+              "su"
+            ],
+            "start": "05:00",
+            "end": "24:00"
+          }
+        ],
+        "on_holidays": "normal"
+      },
+      {
+        "key": "office_hours",
+        "name": "Leasing office hours",
+        "windows": [
+          {
+            "days": [
+              "mo",
+              "tu",
+              "we",
+              "th",
+              "fr"
+            ],
+            "start": "09:00",
+            "end": "18:00"
+          },
+          {
+            "days": [
+              "sa"
+            ],
+            "start": "10:00",
+            "end": "16:00"
+          }
+        ],
+        "on_holidays": "off"
+      },
+      {
+        "key": "vendor_hours",
+        "name": "Vendor hours",
+        "windows": [
+          {
+            "days": [
+              "mo",
+              "tu",
+              "we",
+              "th",
+              "fr",
+              "sa"
+            ],
+            "start": "08:00",
+            "end": "18:00"
+          }
+        ],
+        "on_holidays": "off"
+      }
+    ],
+    "groups": [
+      {
+        "key": "residents",
+        "name": "Residents",
+        "description": "The lobby and garage at all times, the package room and amenities in their hours"
+      },
+      {
+        "key": "staff",
+        "name": "Property staff",
+        "description": "Every door but the mechanical room, at all times"
+      },
+      {
+        "key": "maintenance",
+        "name": "Maintenance",
+        "description": "Every door at all times"
+      },
+      {
+        "key": "vendors",
+        "name": "Vendors and couriers",
+        "description": "The lobby and the package room in the day"
+      }
+    ]
+  },
+  {
+    "key": "gate",
+    "name": "Gate",
+    "description": "A vehicle gate and a pedestrian gate: tenants and employees at all times, deliveries in the day.",
+    "note": "A vehicle gate's operator has its own safety devices (loops, photo eyes, reversing edges): PhotonEntry only tells it when to open.",
+    "holidays": "us-business",
+    "options": [
+      {
+        "key": "open_vehicle_gate",
+        "label": "Keep the vehicle gate open during business hours",
+        "default": false
+      }
+    ],
+    "slots": [
+      {
+        "key": "vehicle_gate",
+        "name": "Vehicle gate",
+        "hint": "The gate cars and trucks use",
+        "required": true
+      },
+      {
+        "key": "pedestrian_gate",
+        "name": "Pedestrian gate",
+        "hint": "A walk-through gate beside it",
+        "required": false
+      }
+    ],
+    "schedules": [
+      {
+        "key": "business",
+        "name": "Business hours",
+        "windows": [
+          {
+            "days": [
+              "mo",
+              "tu",
+              "we",
+              "th",
+              "fr"
+            ],
+            "start": "07:00",
+            "end": "18:00"
+          }
+        ],
+        "on_holidays": "off"
+      },
+      {
+        "key": "deliveries",
+        "name": "Delivery hours",
+        "windows": [
+          {
+            "days": [
+              "mo",
+              "tu",
+              "we",
+              "th",
+              "fr"
+            ],
+            "start": "07:00",
+            "end": "15:00"
+          }
+        ],
+        "on_holidays": "off"
+      }
+    ],
+    "groups": [
+      {
+        "key": "users",
+        "name": "Tenants and employees",
+        "description": "Both gates at all times"
+      },
+      {
+        "key": "deliveries",
+        "name": "Deliveries",
+        "description": "The vehicle gate in delivery hours"
+      }
+    ]
+  }
+]

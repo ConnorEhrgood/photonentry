@@ -2,6 +2,7 @@
 
 Layout:
 - `api/`: the cloud (FastAPI): the integrator's routes, the link service, the site document and the compiler, the directory copy, Postgres (Alembic).
+- `web/`: the integrator's and customer's web app (React 19 + Vite, photon-ui vendored, the shared PhotonID sign-in). Dev port 5193.
 - `acap/entry-link/`: the app on the controller (C).
 - `sim/`: the Axis controller simulator, with its reference.
 - `contract/`: JSON Schemas, samples and the signing vector.
@@ -28,6 +29,8 @@ The C build needs gcc, make, the libcurl and OpenSSL headers. The runner has the
 | Python with the database | `~/.venvs/photonentry/bin/python scripts/with-local-pg.py -- ~/.venvs/photonentry/bin/python -m pytest -p no:warnings` |
 | One part | `... -m pytest api/tests`, `sim/tests`, `tests/e2e` |
 | entry-link | `make -C acap/entry-link` (host build, `-Werror`) |
+| The web app | `cd web && npx vitest run --coverage` (a ratchet: raise the thresholds, never lower them); `node scripts/screenshots.mjs [name]` shoots every page at 1440×900, 820×1180 and 390×844 into `web/screenshots/` (look at them) |
+| photon-ui copies | `node ../photon-ui/scripts/sync-vendored.mjs web/src --css --base --auth` (never edit `web/src/shell`, `ph-auth`, `tokens.css`, `ph-*.css`) |
 | The contract files | `~/.venvs/photonentry/bin/python scripts/contract.py` writes them; `--check` (run by the tests) fails if they are stale |
 
 `KEEP_E2E_LOGS=1` copies the last end-to-end run's `entry-link` log to `entry-link-e2e.log` at the repo root.

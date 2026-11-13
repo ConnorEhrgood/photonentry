@@ -326,7 +326,7 @@ def test_an_office_from_its_template_to_published_settings(client, world, link):
     kid = hello(link)
     cid = client.post(f"/tenants/{world.a}/controllers/claim", json={"code": "ABCD-EFGH", "site_id": world.a1}, headers=h).json()["id"]
     link.store.set_inventory(link.store.by_key(kid).id, INVENTORY)
-    assert [t["key"] for t in client.get("/templates", headers=h).json()][0] == "office"
+    assert [t["key"] for t in client.get("/templates", headers=h).json()] == ["office", "school", "multifamily", "gate"]
     body = {"doors": {"main_entrance": {"controller_id": cid, "controller_door": "door1"},
                       "server_room": {"controller_id": cid, "controller_door": "door2", "name": "IT closet"}},
             "options": {"unlock_main": True}, "years": [2026]}
@@ -367,3 +367,29 @@ def test_template_errors(client, world, link):
                        json={"doors": {"main_entrance": {"controller_id": str(uuid.uuid4()), "controller_door": "door1"}}}).status_code == 422
     assert client.post(f"{base}/templates/office/apply", headers=auth("a-op"), json={"doors": door}).status_code == 403
     assert client.post(f"{base}/templates/office/apply", headers=h, json={"doors": door}).status_code == 201   # this year and next by default
+
+
+@pytest.mark.parametrize("key,slots", [
+    ("school", {"main_entrance": "door1", "gym_entrance": "door2"}),
+    ("multifamily", {"lobby": "door1", "leasing_office": "door2"}),
+    ("gate", {"vehicle_gate": "door1", "pedestrian_gate": "door2"}),
+])
+def test_every_template_applies_and_publishes(client, world, link, key, slots):
+    h, base = auth("a-admin"), f"/tenants/{world.a}/sites/{world.a1}"
+    kid = hello(link)
+    cid = client.post(f"/tenants/{world.a}/controllers/claim", json={"code": "ABCD-EFGH", "site_id": world.a1}, headers=h).json()["id"]
+    link.store.set_inventory(link.store.by_key(kid).id, INVENTORY)
+    template = next(t for t in client.get("/templates", headers=h).json() if t["key"] == key)
+    options = {o["key"]: True for o in template["options"]}
+    r = client.post(f"{base}/templates/{key}/apply", headers=h, json={
+        "doors": {s: {"controller_id": cid, "controller_door": d} for s, d in slots.items()}, "options": options})
+    assert r.status_code == 201, r.text
+    made = r.json()
+    holder = client.post(f"/tenants/{world.a}/cardholders", headers=h, json={"name": "Someone"}).json()
+    client.put(f"/tenants/{world.a}/cardholders/{holder['id']}/groups", headers=h, json={"group_ids": list(made["groups"].values())})
+    client.post(f"/tenants/{world.a}/cardholders/{holder['id']}/credentials", headers=h, json={"kind": "pin", "pin": "1357"})
+    pub = client.post(f"{base}/publish", headers=h)
+    assert pub.status_code == 200, pub.text
+    settings = link.store.latest(cid)[1]
+    assert len(settings["access_profiles"]) == len(made["groups"]) and len(settings["doors"]) == 2
+    assert any(d["DoorScheduleConfiguration"] for d in settings["doors"])          # an option that unlocks a door on a schedule

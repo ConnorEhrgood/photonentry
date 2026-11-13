@@ -134,3 +134,56 @@ PhotonVox, in its own session.
 
 **Not done here (later steps):** the web app (Step 3); door events normalized and sent to Guard and Console (Step 4); `PhotonEntry` in
 PhotonID's catalog (GATE P).
+
+## 2026-11-13: Step 3, the integrator's web app and the site templates
+
+**Connor's direction:** templates for all four customer types (offices, schools, multifamily, gates), all likely clients; the office template
+first and end to end; photon-ui and the shared `@photon/ui/auth` sign-in from the start.
+
+**Built:**
+- **Site templates** (`api/app/templates.py`). Each template has:
+  - door slots, which the integrator maps to the controllers' own doors;
+  - schedules, and access groups that combine (an office's IT person is in Staff and IT);
+  - options (unlock the main entrance during business hours, open the vehicle gate in the day);
+  - US business or federal holidays with weekend observance (July 4, 2026 is observed Friday the 3rd).
+
+  Applying one creates everything at a site in one transaction and leaves it to be reviewed and published. Required slots only are suggested;
+  an optional door is "not at this site" until someone says which it is, so a guess is never published. Four templates:
+  - **office:** staff, managers, IT, cleaning crew;
+  - **school:** staff, administrators, office staff, custodians, after-school programs; the note to add the school's own breaks;
+  - **multifamily:** residents (lobby and garage at all times, package room and amenities in their hours), property staff, maintenance,
+    vendors; the note to use the unit number as the reference;
+  - **gate:** tenants and employees, deliveries; the note that the gate operator's own safety devices stay its own.
+
+  `GET /templates` serves the catalog. `contract/templates/catalog.json` is generated from it and used by the web app's tests and screenshots.
+- **The web app** (`web/`), in PhotonVox's shape:
+  - **Sign-in and design:** photon-ui's shell, tokens and components, vendored and checked by `scripts/test-all.sh`. The suite's sign-in:
+    straight to PhotonID, no sign-in page, 401 after sign-in and 403 as pages.
+  - **Pages:**
+    - Customers (integrators);
+    - Overview (controllers and what needs attention);
+    - Doors (open now; lockdown and its end, each confirmed);
+    - People (cardholders, their groups, cards and PINs, which are never shown back);
+    - Access (groups, schedules, holidays, publish);
+    - Events (in plain words, with door and person);
+    - Settings (Team, Audit trail).
+  - **The setup wizard:** claim controllers, then wait for their doors; pick a template and its options; say which door is which; import
+    people (checked, then imported); publish and watch the controllers take it.
+
+**Verified:**
+- **Web:** 134 tests, including the suite's sign-in contract, every page, the office wizard end to end, and every template's notes and options
+  read from the API's catalog. Coverage ratchet at 97% lines, 94% statements, 82% branches, 92% functions; PhotonEntry's starting point,
+  raised from here.
+- **API:** 398 tests on Postgres (every template applied and published to a controller; the template route closed to other organizations).
+- **Screenshots:** every page at 1440×900, 820×1180 and 390×844, looked at. No page scrolls sideways. Two things were fixed from them:
+  - the stat tiles ran their label into the number;
+  - the door step pre-filled optional doors with guesses.
+
+**Not done, or left for later:**
+- **Editing in place:** schedules, groups and holidays are shown and published from the web app, but changed through the API. The
+  wizard and the API make them today; forms to edit each come with Step 6's people-facing work if the integrators ask for them first.
+- **The commissioning record** moved to Step 6, with the installers' licenses.
+- **A door or lock icon:** the sidebar uses photon-ui's existing icons. A door icon would need a line in photon-ui's `shell/icons.tsx`,
+  another repo, in its own session.
+- **Sign-in against a real PhotonID:** not run yet. Registering `entry` at the dev PhotonID (callback and signed-out addresses) is id1's
+  job, and the production addresses are Connor's step (GATE P).

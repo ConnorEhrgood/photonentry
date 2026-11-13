@@ -96,7 +96,93 @@ OFFICE = Template(
     options=[Option("unlock_main", "Unlock the main entrance during business hours (otherwise visitors use the intercom)")],
 )
 
-TEMPLATES: Dict[str, Template] = {t.key: t for t in (OFFICE,)}
+SCHOOL = Template(
+    key="school", name="School",
+    description="Staff in staff hours, administrators at all times, custodians early to late every day, after-school programs at the gym.",
+    slots=[
+        Slot("main_entrance", "Main entrance", "The front door, by the office", required=True, unlock=("unlock_arrival", "arrival")),
+        Slot("staff_entrance", "Staff entrance", "The staff or parking-lot door"),
+        Slot("side_door", "Side door", "Another exterior door staff use"),
+        Slot("gym_entrance", "Gym entrance", "The door after-school programs and evening events use", unlock=("unlock_gym_events", "after_school")),
+        Slot("office_door", "Office door", "The main office or records room", access_time_s=5),
+    ],
+    schedules=[
+        ScheduleT("staff_hours", "Staff hours", [w(WEEKDAYS, "06:00", "18:00")]),
+        ScheduleT("arrival", "Arrival and dismissal", [w(WEEKDAYS, "07:30", "08:15"), w(WEEKDAYS, "14:45", "15:30")]),
+        ScheduleT("after_school", "After school", [w(WEEKDAYS, "15:00", "21:00"), w(["sa"], "08:00", "16:00")]),
+        ScheduleT("custodial", "Custodial hours", [w(EVERY_DAY, "05:00", "23:00")], on_holidays="normal"),
+    ],
+    groups=[
+        GroupT("staff", "Staff", "Teachers and staff: the exterior doors in staff hours",
+               [(["main_entrance", "staff_entrance", "side_door", "gym_entrance"], "staff_hours")]),
+        GroupT("administrators", "Administrators", "Every door at all times",
+               [(["main_entrance", "staff_entrance", "side_door", "gym_entrance", "office_door"], None)]),
+        GroupT("office", "Office staff", "The office door in staff hours (add them to Staff as well)", [(["office_door"], "staff_hours")]),
+        GroupT("custodians", "Custodians", "Every door, early to late, every day",
+               [(["main_entrance", "staff_entrance", "side_door", "gym_entrance", "office_door"], "custodial")]),
+        GroupT("programs", "After-school programs", "The gym entrance after school", [(["gym_entrance"], "after_school")]),
+    ],
+    holidays="us-federal",
+    options=[
+        Option("unlock_arrival", "Unlock the main entrance at arrival and dismissal (otherwise it stays locked and visitors use the intercom)"),
+        Option("unlock_gym_events", "Unlock the gym entrance after school"),
+    ],
+    note="Add the school's own breaks (winter, spring, teacher days) to the holidays after applying: the template adds only the federal holidays.",
+)
+
+MULTIFAMILY = Template(
+    key="multifamily", name="Multifamily",
+    description="Residents at the lobby and garage at all times and the amenities in their hours, staff and maintenance everywhere, vendors in the day.",
+    slots=[
+        Slot("lobby", "Lobby entrance", "The front door residents and visitors use (with the intercom)", required=True),
+        Slot("garage", "Garage door", "The parking garage's pedestrian or vehicle door", access_time_s=15, open_too_long_s=120),
+        Slot("package_room", "Package room", "Where deliveries are left"),
+        Slot("amenity", "Amenity", "The gym, pool or clubroom"),
+        Slot("leasing_office", "Leasing office", "The management office", unlock=("unlock_office", "office_hours")),
+        Slot("mechanical", "Mechanical room", "Boiler, electrical or roof access", access_time_s=5, open_too_long_s=60),
+    ],
+    schedules=[
+        ScheduleT("amenity_hours", "Amenity hours", [w(EVERY_DAY, "06:00", "23:00")], on_holidays="normal"),
+        ScheduleT("package_hours", "Package room hours", [w(EVERY_DAY, "05:00", "24:00")], on_holidays="normal"),
+        ScheduleT("office_hours", "Leasing office hours", [w(WEEKDAYS, "09:00", "18:00"), w(["sa"], "10:00", "16:00")]),
+        ScheduleT("vendor_hours", "Vendor hours", [w(WEEKDAYS + ["sa"], "08:00", "18:00")]),
+    ],
+    groups=[
+        GroupT("residents", "Residents", "The lobby and garage at all times, the package room and amenities in their hours",
+               [(["lobby", "garage"], None), (["package_room"], "package_hours"), (["amenity"], "amenity_hours")]),
+        GroupT("staff", "Property staff", "Every door but the mechanical room, at all times",
+               [(["lobby", "garage", "package_room", "amenity", "leasing_office"], None)]),
+        GroupT("maintenance", "Maintenance", "Every door at all times",
+               [(["lobby", "garage", "package_room", "amenity", "leasing_office", "mechanical"], None)]),
+        GroupT("vendors", "Vendors and couriers", "The lobby and the package room in the day", [(["lobby", "package_room"], "vendor_hours")]),
+    ],
+    holidays="us-business",
+    options=[Option("unlock_office", "Unlock the leasing office during office hours")],
+    note="Give each resident their unit number as their reference, so a move-out is one search away.",
+)
+
+GATE = Template(
+    key="gate", name="Gate",
+    description="A vehicle gate and a pedestrian gate: tenants and employees at all times, deliveries in the day.",
+    slots=[
+        Slot("vehicle_gate", "Vehicle gate", "The gate cars and trucks use", required=True, access_time_s=20, open_too_long_s=300, pre_alarm_s=30,
+             unlock=("open_vehicle_gate", "business")),
+        Slot("pedestrian_gate", "Pedestrian gate", "A walk-through gate beside it", access_time_s=7, open_too_long_s=60),
+    ],
+    schedules=[
+        ScheduleT("business", "Business hours", [w(WEEKDAYS, "07:00", "18:00")]),
+        ScheduleT("deliveries", "Delivery hours", [w(WEEKDAYS, "07:00", "15:00")]),
+    ],
+    groups=[
+        GroupT("users", "Tenants and employees", "Both gates at all times", [(["vehicle_gate", "pedestrian_gate"], None)]),
+        GroupT("deliveries", "Deliveries", "The vehicle gate in delivery hours", [(["vehicle_gate"], "deliveries")]),
+    ],
+    holidays="us-business",
+    options=[Option("open_vehicle_gate", "Keep the vehicle gate open during business hours")],
+    note="A vehicle gate's operator has its own safety devices (loops, photo eyes, reversing edges): PhotonEntry only tells it when to open.",
+)
+
+TEMPLATES: Dict[str, Template] = {t.key: t for t in (OFFICE, SCHOOL, MULTIFAMILY, GATE)}
 
 
 # ---- holidays ----

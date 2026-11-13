@@ -5,7 +5,7 @@
 //   node scripts/screenshots.mjs setup           only pages whose name contains "setup"
 // Chromium comes from Playwright's cache (~/.cache/ms-playwright); no Playwright test runner is needed.
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { chromium } from 'playwright-core'
@@ -64,15 +64,7 @@ const ev = (seq, mins, topic, o = {}) => ({ controller_id: 'c1', seq, occurred_a
 const EVENTS = [ev(9, 2, 'AccessControl/AccessGranted/Credential', { cardholder: 'Alice Smith' }), ev(8, 14, 'AccessControl/Denied/Credential', { cardholder: 'Dan Kim', reason: 'CredentialNotEnabled' }),
   ev(7, 40, 'Door/State/DoorAlarm', { state: 'DoorOpenTooLong', door: 'Staff entrance' }), ev(6, 95, 'AccessControl/Denied/CredentialNotFound/Card'),
   ev(5, 300, 'AccessControl/AccessGranted/Credential', { cardholder: 'Carol Diaz', door: 'IT closet' })]
-const OFFICE = { key: 'office', name: 'Office', description: 'Staff in extended hours, managers at all times, IT in the server room, the cleaning crew in the evening.', note: '', holidays: 'us-business',
-  options: [{ key: 'unlock_main', label: 'Unlock the main entrance during business hours (otherwise visitors use the intercom)', default: false }],
-  slots: [{ key: 'main_entrance', name: 'Main entrance', hint: 'The front door visitors use (often with the intercom)', required: true },
-    { key: 'staff_entrance', name: 'Staff entrance', hint: 'A side or back door for staff', required: false },
-    { key: 'suite_door', name: 'Suite door', hint: 'An inner door, if the office is a suite in a larger building', required: false },
-    { key: 'server_room', name: 'Server room', hint: 'The IT closet or server room', required: false }],
-  schedules: SCHEDULES.map((s, i) => ({ key: ['business', 'extended', 'cleaning'][i], name: s.name, windows: s.windows, on_holidays: s.on_holidays })),
-  groups: [{ key: 'staff', name: 'Staff', description: 'Every employee: the entrances and the suite, in extended hours' }, { key: 'managers', name: 'Managers', description: 'The entrances and the suite at all times' },
-    { key: 'it', name: 'IT', description: 'The server room at all times (add IT staff to Staff as well)' }, { key: 'cleaning', name: 'Cleaning crew', description: 'The entrances and the suite in the evening' }] }
+const CATALOG = JSON.parse(readFileSync(new URL('../../contract/templates/catalog.json', import.meta.url)))   // the API's own catalog
 const MEMBERS = [{ person_id: 'm1', name: 'Ada Owner', email: 'ada@example.com', role: 'owner', scope: { all: true }, source: 'direct', pending: false },
   { person_id: 'm2', name: 'Partner support', email: '', role: 'admin', scope: { all: true }, source: 'partner', pending: false },
   { person_id: 'm3', name: 'Fay Front', email: 'fay@example.com', role: 'operator', scope: { sites: ['s1'] }, source: 'direct', pending: false }]
@@ -81,7 +73,7 @@ const AUDIT = [{ at: now, actor: 'Partner support', action: 'site.publish', targ
 
 const answers = (who) => ({
   '/me': [200, who === 'tech' ? me([tech(), tech({ id: 't2', name: 'Birch Co', status: 'suspended' }), tech({ id: 't3', name: 'Elm Street School' })], { name: 'Tom Tech' }) : me([tenant()])],
-  '/templates': [200, [OFFICE]],
+  '/templates': [200, CATALOG],
   '/tenants/t1/sites': [200, SITES], '/tenants/t2/sites': [200, SITES], '/tenants/t3/sites': [200, SITES],
   '/tenants/t1/controllers': [200, CONTROLLERS], '/tenants/t2/controllers': [200, []], '/tenants/t3/controllers': [200, [{ ...CONTROLLERS[0], last_seen: null }]],
   '/tenants/t1/sites/s1/doors': [200, who === 'setup' ? [] : DOORS], '/tenants/t1/sites/s1/schedules': [200, SCHEDULES], '/tenants/t1/sites/s1/groups': [200, GROUPS],
@@ -98,6 +90,9 @@ const PAGES = [
   ['setup-1-controllers', '/setup', 'setup'],
   ['setup-2-template', '/setup', 'setup', [{ button: 'Next: choose a template' }, { radio: 'Office' }]],
   ['setup-3-doors', '/setup', 'setup', [{ button: 'Next: choose a template' }, { radio: 'Office' }, { button: 'Next: which door is which' }]],
+  ['setup-2-school', '/setup', 'setup', [{ button: 'Next: choose a template' }, { radio: 'School' }]],
+  ['setup-3-multifamily', '/setup', 'setup', [{ button: 'Next: choose a template' }, { radio: 'Multifamily' }, { button: 'Next: which door is which' }]],
+  ['setup-2-gate', '/setup', 'setup', [{ button: 'Next: choose a template' }, { radio: 'Gate' }]],
 ].filter(([name]) => !only || name.includes(only))
 
 mkdirSync('screenshots', { recursive: true })

@@ -64,3 +64,32 @@ def test_the_catalog_names_every_template_and_validates_as_documents():
         # Every template's schedules are valid schedules of a site document.
         SiteDocument.model_validate({"site_id": "x", "schedules": [{"id": s["key"], "name": s["name"], "windows": s["windows"],
                                                                     "on_holidays": s["on_holidays"]} for s in t["schedules"]]})
+
+
+def test_a_school_with_every_door_and_both_options():
+    doors = {k: {"controller_id": "c", "controller_door": k} for k in ("main_entrance", "staff_entrance", "side_door", "gym_entrance", "office_door")}
+    p = plan("school", doors, {"unlock_arrival": True, "unlock_gym_events": True}, [2026])
+    unlock = {d[0].key: d[4] for d in p.doors}
+    assert unlock == {"main_entrance": "arrival", "staff_entrance": None, "side_door": None, "gym_entrance": "after_school", "office_door": None}
+    assert [g.key for g, _ in p.groups] == ["staff", "administrators", "office", "custodians", "programs"]
+    assert len(p.holidays) == 11                                   # the federal holidays
+    assert templates.TEMPLATES["school"].note
+
+
+def test_a_school_without_a_gym_has_no_after_school_group():
+    p = plan("school", {"main_entrance": A}, {}, [2026])
+    assert "programs" not in [g.key for g, _ in p.groups] and "after_school" not in [s.key for s in p.schedules]
+
+
+def test_multifamily_residents_combine_rules():
+    p = plan("multifamily", {"lobby": A, "package_room": B, "amenity": {"controller_id": "c1", "controller_door": "door3"}}, {}, [2026])
+    residents = dict((g.key, r) for g, r in p.groups)["residents"]
+    assert residents == [(["lobby"], None), (["package_room"], "package_hours"), (["amenity"], "amenity_hours")]
+    assert {s.key for s in p.schedules} == {"package_hours", "amenity_hours", "vendor_hours"}    # no leasing office: no office hours
+
+
+def test_a_gate_kept_open_in_business_hours():
+    p = plan("gate", {"vehicle_gate": A}, {"open_vehicle_gate": True}, [2026])
+    slot, *_, unlock = p.doors[0]
+    assert unlock == "business" and slot.access_time_s == 20 and slot.open_too_long_s == 300
+    assert [g.key for g, _ in p.groups] == ["users", "deliveries"]
