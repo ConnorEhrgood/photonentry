@@ -265,7 +265,7 @@ ROUTES = [
     ("POST", "/tenants/{t}/cardholders/{h}/credentials"), ("PATCH", "/tenants/{t}/cardholders/{h}/credentials/{k}"),
     ("DELETE", "/tenants/{t}/cardholders/{h}/credentials/{k}"), ("POST", "/tenants/{t}/cardholders/import"),
     ("POST", "/tenants/{t}/doors/{d}/action"), ("POST", "/tenants/{t}/sites/{s}/lockdown"), ("GET", "/tenants/{t}/commands/{cmd}"),
-    ("GET", "/tenants/{t}/sites/{s}/events"), ("GET", "/tenants/{t}/audit"),
+    ("GET", "/tenants/{t}/sites/{s}/events"), ("GET", "/tenants/{t}/audit"), ("POST", "/tenants/{t}/sites/{s}/templates/office/apply"),
 ]
 BODIES = {
     "/tenants/{t}/controllers/claim": {"code": "ABCD-EFGH", "site_id": "{s}"},
@@ -276,7 +276,7 @@ BODIES = {
     "/tenants/{t}/sites/{s}/groups/{g}": {"name": "X", "rules": [{"doors": ["{d}"]}]}, "/tenants/{t}/cardholders": {"name": "X"},
     "/tenants/{t}/cardholders/{h}/groups": {"group_ids": []}, "/tenants/{t}/cardholders/{h}/credentials": {"kind": "pin", "pin": "9999"},
     "/tenants/{t}/cardholders/import": {"site_id": "{s}", "csv": "name\nX\n"}, "/tenants/{t}/sites/{s}/lockdown": {"on": True},
-    "/tenants/{t}/doors/{d}/action": {}, "/tenants/{t}/controllers/{c}": {}, "/tenants/{t}/sites/{s}/doors/{d}": {},
+    "/tenants/{t}/doors/{d}/action": {}, "/tenants/{t}/sites/{s}/templates/office/apply": {"doors": {"main_entrance": {"controller_id": "{c}", "controller_door": "door1"}}}, "/tenants/{t}/controllers/{c}": {}, "/tenants/{t}/sites/{s}/doors/{d}": {},
     "/tenants/{t}/cardholders/{h}": {}, "/tenants/{t}/cardholders/{h}/credentials/{k}": {},
 }
 
@@ -319,3 +319,51 @@ def test_every_route_is_closed_to_other_organizations_and_strangers(client, worl
         assert s.execute(select(Controller.name).where(Controller.id == uuid.UUID(ids["controller"]))).scalar() == "Front desk"
         assert s.execute(text("select count(*) from credential where id = :k"), {"k": cred}).scalar() == 1
         assert s.execute(text("select count(*) from door where tenant_id = :a"), {"a": world.a}).scalar() == 2
+
+
+def test_an_office_from_its_template_to_published_settings(client, world, link):
+    h, base = auth("a-admin"), f"/tenants/{world.a}/sites/{world.a1}"
+    kid = hello(link)
+    cid = client.post(f"/tenants/{world.a}/controllers/claim", json={"code": "ABCD-EFGH", "site_id": world.a1}, headers=h).json()["id"]
+    link.store.set_inventory(link.store.by_key(kid).id, INVENTORY)
+    assert [t["key"] for t in client.get("/templates", headers=h).json()][0] == "office"
+    body = {"doors": {"main_entrance": {"controller_id": cid, "controller_door": "door1"},
+                      "server_room": {"controller_id": cid, "controller_door": "door2", "name": "IT closet"}},
+            "options": {"unlock_main": True}, "years": [2026]}
+    r = client.post(f"{base}/templates/office/apply", headers=h, json=body)
+    assert r.status_code == 201, r.text
+    made = r.json()
+    assert set(made["doors"]) == {"main_entrance", "server_room"} and set(made["groups"]) == {"staff", "managers", "it", "cleaning"}
+    assert made["holidays_added"] == 7
+    doors = {d["name"]: d for d in client.get(f"{base}/doors", headers=h).json()}
+    assert doors["Main entrance"]["unlock_schedule_id"] == made["schedules"]["business"] and doors["IT closet"]["open_too_long_s"] == 60
+    # Applying again: the controller's doors are already doors.
+    assert client.post(f"{base}/templates/office/apply", headers=h, json=body).status_code == 409
+    # Holidays already in the calendar are not added twice.
+    again = client.post(f"/tenants/{world.a}/sites/{world.a2}/templates/office/apply", headers=h, json={**body, "doors": {}})
+    assert again.status_code == 422                                     # the main entrance is required
+    # Someone in the staff group, published to the controller.
+    holder = client.post(f"/tenants/{world.a}/cardholders", headers=h, json={"name": "Ann"}).json()
+    client.put(f"/tenants/{world.a}/cardholders/{holder['id']}/groups", headers=h, json={"group_ids": [made["groups"]["staff"], made["groups"]["it"]]})
+    client.post(f"/tenants/{world.a}/cardholders/{holder['id']}/credentials", headers=h, json={"kind": "pin", "pin": "2468"})
+    pub = client.post(f"{base}/publish", headers=h)
+    assert pub.status_code == 200, pub.text
+    settings = link.store.latest(cid)[1]
+    assert len(settings["access_profiles"]) == 4 and len(settings["credentials"]) == 1
+    assert "20260703" in next(s for s in settings["schedules"] if s["Name"] == "Business hours")["ExceptionScheduleDefinition"]
+
+
+def test_template_errors(client, world, link):
+    h, base = auth("a-admin"), f"/tenants/{world.a}/sites/{world.a1}"
+    kid = hello(link)
+    cid = client.post(f"/tenants/{world.a}/controllers/claim", json={"code": "ABCD-EFGH", "site_id": world.a1}, headers=h).json()["id"]
+    link.store.set_inventory(link.store.by_key(kid).id, INVENTORY)
+    door = {"main_entrance": {"controller_id": cid, "controller_door": "door1"}}
+    assert client.post(f"{base}/templates/office/apply", headers=h, json={"doors": door, "years": [1999]}).status_code == 422
+    assert client.post(f"{base}/templates/castle/apply", headers=h, json={"doors": door}).status_code == 422
+    assert client.post(f"{base}/templates/office/apply", headers=h,
+                       json={"doors": {"main_entrance": {"controller_id": cid, "controller_door": "door9"}}}).status_code == 422
+    assert client.post(f"{base}/templates/office/apply", headers=h,
+                       json={"doors": {"main_entrance": {"controller_id": str(uuid.uuid4()), "controller_door": "door1"}}}).status_code == 422
+    assert client.post(f"{base}/templates/office/apply", headers=auth("a-op"), json={"doors": door}).status_code == 403
+    assert client.post(f"{base}/templates/office/apply", headers=h, json={"doors": door}).status_code == 201   # this year and next by default

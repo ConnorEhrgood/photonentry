@@ -1,0 +1,40 @@
+/* PhotonEntry-specific layout. Colors, buttons, nav, banners, tables, tabs and the sign-in card come from @photon/ui:
+   add to that package, not here, when a pattern could be used by another Photon product. */
+
+.pe-notyet { max-width: 60ch; text-align: left; }
+.pe-notyet p { margin: 0 0 0.75rem; }
+.pe-section { margin: 1.5rem 0; }
+.ph-card > .ph-actions, .ph-card > .ph-error + .ph-actions { margin-top: 1rem; }
+.pe-plain { list-style: none; padding: 0; margin: 0.5rem 0 1rem; display: grid; gap: 0.5rem; }
+.pe-item { padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.pe-columns { grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); }
+.pe-cards { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); }
+.pe-cards .ph-card h3 { margin-top: 0; }
+.pe-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 0 0.75rem; }
+.pe-paste { width: 100%; min-height: 9rem; font-family: var(--font-mono, monospace); }
+.pe-confirm { display: inline-flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.pe-site-picker { width: auto; max-width: 100%; }
+.pe-filter { max-width: 24rem; }
+.pe-fieldset { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.5rem 0.75rem; margin: 0.5rem 0 1rem; display: grid; gap: 0.25rem; }
+
+/* The setup wizard: its steps as a short numbered line; template choices as cards; door slots in two columns where there is room. */
+.pe-steps { display: flex; gap: 1rem; flex-wrap: wrap; margin: 0 0 0.75rem; padding: 0; list-style: none; font-size: 0.85rem; color: var(--text-dim); }
+.pe-steps [aria-current="step"] { color: var(--text); font-weight: 600; }
+.pe-choices { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); margin: 0.75rem 0; }
+.pe-choice { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.75rem; border: 1px solid var(--border-strong); border-radius: var(--radius); cursor: pointer; }
+.pe-choice-on { border-color: var(--accent); }
+.pe-slots { display: grid; gap: 0.5rem 1.5rem; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
+.pe-slot { border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+
+/* Tables become stacked cards on a phone: each cell carries its heading (data-label) to the left, so nothing scrolls sideways. */
+@media (max-width: 720px) {
+  .pe-table, .pe-table tbody, .pe-table tr, .pe-table td { display: block; width: 100%; }
+  .pe-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .pe-table tr { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; background: var(--surface); }
+  .pe-table td { border: 0; padding: 0.3rem 0 0.3rem 6.5rem; position: relative; text-align: left; min-height: 1.6rem; overflow-wrap: anywhere; }
+  .pe-table td::before { content: attr(data-label); position: absolute; left: 0; top: 0.3rem; width: 6rem; color: var(--text-dim); }
+  .pe-table td.pe-who { padding-left: 0; padding-bottom: 0.5rem; margin-bottom: 0.25rem; border-bottom: 1px solid var(--border); }
+  .pe-table td.pe-who::before, .pe-table td[data-label=""]::before { content: none; }
+  .pe-table td[data-label=""] { padding-left: 0; }
+  .pe-table td:empty { display: none; }
+}

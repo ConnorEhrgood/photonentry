@@ -12,6 +12,8 @@ trap 'rm -f "$COV"' EXIT
 
 step "contract: generated files match the code"; "$PY" scripts/contract.py --check
 step "entry-link: host build (-Wall -Wextra -Werror)"; make -s -C acap/entry-link
+step "web: vendored photon-ui is current"; node ../photon-ui/scripts/sync-vendored.mjs web/src --css --base --auth --check
+step "web: types, tests with the coverage ratchet"; (cd web && npx tsc --noEmit -p tsconfig.app.json && npx vitest run --coverage 2>&1 | grep -E "Tests |ERROR")
 if [ "${1:-}" = "--remote" ]; then
   step "everything on LXC 800, with coverage"; COVERAGE=1 scripts/remote-test.sh 2>&1 | tail -3
 else

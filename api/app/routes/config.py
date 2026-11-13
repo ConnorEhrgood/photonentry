@@ -21,9 +21,9 @@ from app.deps import Ctx, tenant_ctx
 from app.document import Holiday, Rule, Window
 from app.link.pgstore import notify
 from app.link.protocol import Inventory
-from app.models import AccessGroup, CardholderGroup, Controller, Door, HolidayCalendar, Schedule, SettingsVersion, Site
+from app.models import AccessGroup, CardholderGroup, Controller, Door, HolidayCalendar, Schedule, SettingsVersion, Site, utcnow
 from app.routes.common import log, not_found, problem, site_of
-from app import sitedoc
+from app import sitedoc, templates
 
 router = APIRouter(prefix="/tenants/{tenant_id}/sites/{site_id}")
 VIEW, MANAGE = "entry.view", "entry.config.manage"
@@ -322,3 +322,76 @@ def publish(site_id: uuid.UUID, ctx: Ctx = Depends(tenant_ctx), db: Session = De
         versions={o["controller_id"]: o["version"] for o in out if o["changed"]})
     db.commit()
     return {"controllers": out}
+
+
+# ---- templates ----
+
+
+class TemplateDoor(BaseModel):
+    controller_id: uuid.UUID
+    controller_door: str = Field(min_length=1, max_length=64)
+    name: Optional[str] = Field(default=None, min_length=1, max_length=64)
+
+
+class ApplyTemplateIn(BaseModel):
+    doors: Dict[str, TemplateDoor] = Field(description="Slot key -> the controller door it is; optional slots may be left out")
+    options: Dict[str, bool] = Field(default_factory=dict)
+    years: Optional[List[int]] = Field(default=None, description="Holiday years (default: this year and next)")
+
+
+@router.post("/templates/{key}/apply", status_code=201)
+def apply_template(site_id: uuid.UUID, key: str, body: ApplyTemplateIn, ctx: Ctx = Depends(tenant_ctx), db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Create a template's doors, schedules and groups at the site and add its holidays to the site's calendar, in one transaction."""
+    site = site_of(db, ctx, site_id, MANAGE)
+    this_year = utcnow().year
+    years = body.years or [this_year, this_year + 1]
+    if any(y < 2000 or y > 2100 for y in years) or len(years) > 5:
+        raise problem({"code": "invalid", "detail": "Holiday years are 2000 to 2100, at most five"})
+    try:
+        p = templates.plan(key, {k: {"controller_id": str(v.controller_id), "controller_door": v.controller_door, "name": v.name or ""}
+                                 for k, v in body.doors.items()}, body.options, years)
+    except templates.TemplateError as e:
+        raise problem({"code": "invalid", "detail": str(e)})
+    for _, cid, cdoor, _, _ in p.doors:
+        c = db.get(Controller, uuid.UUID(cid))
+        if c is None or c.site_id != site.id or c.state == "pending":
+            raise problem({"code": "no_such_controller", "detail": "A chosen controller is not at this site"})
+        if cdoor not in {d["token"] for d in (c.inventory or {}).get("doors", [])}:
+            raise problem({"code": "no_such_controller_door", "detail": f"The controller has not reported door {cdoor}"})
+    schedule_ids = {s.key: uuid.uuid4() for s in p.schedules}
+    for s in p.schedules:
+        db.add(Schedule(id=schedule_ids[s.key], tenant_id=ctx.tenant_id, site_id=site.id, name=s.name, windows=s.windows, on_holidays=s.on_holidays))
+    door_ids: Dict[str, uuid.UUID] = {}
+    for slot, cid, cdoor, name, unlock in p.doors:
+        door_ids[slot.key] = uuid.uuid4()
+        db.add(Door(id=door_ids[slot.key], tenant_id=ctx.tenant_id, site_id=site.id, controller_id=uuid.UUID(cid), controller_door=cdoor, name=name,
+                    access_time_s=slot.access_time_s, open_too_long_s=slot.open_too_long_s, pre_alarm_s=slot.pre_alarm_s,
+                    unlock_schedule_id=schedule_ids[unlock] if unlock else None))
+    group_ids = {}
+    for g, rules in p.groups:
+        group_ids[g.key] = uuid.uuid4()
+        db.add(AccessGroup(id=group_ids[g.key], tenant_id=ctx.tenant_id, site_id=site.id, name=g.name, rules=[
+            {"doors": [str(door_ids[x]) for x in slots], "schedule_id": str(schedule_ids[sched]) if sched else None} for slots, sched in rules]))
+    added = 0
+    if p.holidays:
+        cal = db.get(HolidayCalendar, site.id)
+        have = {d["day"] for d in (cal.days if cal else [])}
+        days = list(cal.days) if cal else []
+        for day, name in p.holidays:
+            if day.isoformat() not in have:
+                days.append({"day": day.isoformat(), "name": name})
+                added += 1
+        days.sort(key=lambda d: d["day"])
+        if cal is None:
+            db.add(HolidayCalendar(site_id=site.id, tenant_id=ctx.tenant_id, days=days))
+        else:
+            cal.days = days
+    try:
+        db.flush()
+    except IntegrityError:
+        raise problem({"code": "door_exists", "detail": "One of the chosen controller doors is already a door at this site"}, 409)
+    log(db, ctx, "site.template", site_id=site.id, target_type="site", target_id=site.id, template=key, doors=len(door_ids),
+        schedules=len(schedule_ids), groups=len(group_ids), holidays=added)
+    db.commit()
+    return {"template": key, "doors": {k: str(v) for k, v in door_ids.items()}, "schedules": {k: str(v) for k, v in schedule_ids.items()},
+            "groups": {k: str(v) for k, v in group_ids.items()}, "holidays_added": added}

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app import access
 from app.access import Grant
 from app.db import get_db
-from app.deps import Ctx, require, tenant_ctx
+from app.deps import Ctx, Who, current_person, require, tenant_ctx
 from app.models import Access, Person, Site, Tenant
 from app.roles import ROLES
 from app.routes.me import scope_json
@@ -51,3 +51,13 @@ def list_members(ctx: Ctx = Depends(require("entry.members.view")), db: Session 
         out.append({"person_id": str(p.id), "name": PARTNER_LABEL if partner else p.name, "email": "" if partner else p.email, "role": a.role,
                     "scope": scope_json(Grant.from_row(a)), "source": a.source, "pending": p.sub is None})
     return sorted(out, key=lambda m: (-ROLES[m["role"]].rank, m["name"].lower()))
+
+
+catalog_router = APIRouter()
+
+
+@catalog_router.get("/templates")
+def site_templates(who: Who = Depends(current_person)) -> List[Dict[str, Any]]:
+    """The site templates (app/templates.py): what each creates, for the setup wizard."""
+    from app import templates
+    return templates.catalog()

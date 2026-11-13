@@ -38,6 +38,7 @@ def create_app(link: Link, routes: bool = True) -> FastAPI:
     from app.routes import actions, cardholders, config, controllers, directory_notify, me, tenants
     for r in (me, tenants, directory_notify, controllers, config, cardholders, actions):
         app.include_router(r.router)
+    app.include_router(tenants.catalog_router)
     if settings.cors_list:
         app.add_middleware(CORSMiddleware, allow_origins=settings.cors_list, allow_methods=CORS_METHODS,
                            allow_headers=["Authorization", "Content-Type"], max_age=600)
