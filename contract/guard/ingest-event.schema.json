@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://photonind.com/contract/entry/guard-ingest-event-1.json",
+  "title": "A door event PhotonEntry sends to PhotonGuard: POST {GUARD_API_URL}/ingest/v1/events, Authorization: Bearer <ingest token>",
+  "description": "PhotonGuard's ingest request (photonguard docs/ARCHITECTURE.md §7.6) as PhotonEntry fills it (api/app/guard.py). Written 2026-11-13 from Guard's design, before Guard's ingest was built (its M3): Guard pins these samples when it builds it. Proposed additions on Guard's side (PhotonEntry ARCHITECTURE §14): an incident source `access` for started/ended door alarms, and bindings named `entry-door-<door id>`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source", "dedup_key", "state", "occurred_at", "kind", "severity", "label", "targets", "record", "attributes"],
+  "properties": {
+    "source": {"type": "object", "additionalProperties": false, "required": ["kind", "key", "name"],
+               "properties": {"kind": {"const": "photonentry"}, "key": {"type": "string", "pattern": "^(door:[0-9a-f-]{36}|test)$"}, "name": {"type": "string"}}},
+    "dedup_key": {"type": "string", "pattern": "^entry:", "maxLength": 120},
+    "state": {"enum": ["instant", "started", "ended"]},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "kind": {"const": "external"},
+    "severity": {"enum": ["info", "warning", "critical"]},
+    "label": {"type": "string", "minLength": 1, "maxLength": 300},
+    "targets": {"type": "object", "additionalProperties": false, "required": ["binding"],
+                "properties": {"binding": {"type": "string", "pattern": "^entry-(door-[0-9a-f-]{36}|connection-test)$"}}},
+    "record": {"oneOf": [{"const": false}, {"type": "object", "additionalProperties": false, "required": ["pre_s", "post_s"],
+                                             "properties": {"pre_s": {"type": "integer"}, "post_s": {"type": "integer"}}}]},
+    "link": {"type": "string"},
+    "attributes": {"type": "object", "additionalProperties": false, "required": ["door", "entry_kind", "reason", "cardholder"],
+                   "properties": {"door": {"type": "string"}, "entry_kind": {"type": "string"}, "reason": {"type": "string"}, "cardholder": {"type": "string"}}}
+  }
+}

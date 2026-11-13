@@ -20,9 +20,9 @@ export function Layout() {
   const items: (NavItem & { cap?: string })[] = [
     ...(isIntegrator(tenants) ? [{ to: '/customers', label: 'Customers', icon: 'clients' as const }] : []),
     { to: '/overview', label: 'Overview', icon: 'overview', cap: 'entry.view' },
-    { to: '/doors', label: 'Doors', icon: 'sites', cap: 'entry.view' },
+    { to: '/doors', label: 'Doors', icon: 'door', cap: 'entry.view' },
     { to: '/people', label: 'People', icon: 'people', cap: 'entry.cardholders.view' },
-    { to: '/access', label: 'Access', icon: 'automations', cap: 'entry.view' },
+    { to: '/access', label: 'Access', icon: 'access', cap: 'entry.view' },
     { to: '/events', label: 'Events', icon: 'events', cap: 'entry.events.view' },
   ]
   const groups: NavGroup[] = [{ items: items.filter((i) => !i.cap || can(i.cap)).map(({ cap: _cap, ...i }) => i) }]

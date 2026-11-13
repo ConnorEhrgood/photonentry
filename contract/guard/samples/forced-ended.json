@@ -1,0 +1,24 @@
+{
+  "source": {
+    "kind": "photonentry",
+    "key": "door:0d000000-0000-4000-8000-000000000001",
+    "name": "Side door"
+  },
+  "occurred_at": "2026-11-16T15:00:00+00:00",
+  "kind": "external",
+  "severity": "info",
+  "targets": {
+    "binding": "entry-door-0d000000-0000-4000-8000-000000000001"
+  },
+  "link": "https://entry.photonind.com/events?site=05000000-0000-4000-8000-000000000001",
+  "attributes": {
+    "door": "Side door",
+    "entry_kind": "alarm_cleared",
+    "reason": "",
+    "cardholder": ""
+  },
+  "dedup_key": "entry:alarm:0d000000-0000-4000-8000-000000000001:0c000000-0000-4000-8000-000000000001:3",
+  "state": "ended",
+  "label": "Door alarm cleared: Side door",
+  "record": false
+}

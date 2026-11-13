@@ -272,3 +272,55 @@ class Credential(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     __table_args__ = (UniqueConstraint("tenant_id", "fingerprint", name="uq_credential_fingerprint"),
                       CheckConstraint("kind in ('card', 'pin')", name="ck_credential_kind"))
+
+
+# ---- 4. integrations: PhotonGuard and PhotonConsole ----
+
+
+class GuardLink(Base):
+    """An organization's connection to PhotonGuard: the ingest token its Guard admin made (scope guard:events:write), sealed. Guard's address is
+    PhotonEntry's configuration (GUARD_API_URL), never the organization's, so the sender cannot be pointed anywhere else."""
+    __tablename__ = "guard_link"
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUIDT, primary_key=True)
+    token_sealed: Mapped[str] = mapped_column(Text)
+    token_hint: Mapped[str] = mapped_column(String(12), default="")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUIDT)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_ok_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str] = mapped_column(Text, default="")
+    last_error_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    sent: Mapped[int] = mapped_column(BigInteger, default=0)
+
+
+class GuardCursor(Base):
+    """How far each controller's events have been offered to Guard (the system's own bookkeeping)."""
+    __tablename__ = "guard_cursor"
+    controller_id: Mapped[uuid.UUID] = mapped_column(UUIDT, primary_key=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUIDT, index=True)
+    seq: Mapped[int] = mapped_column(BigInteger, default=0)
+
+
+class DoorAlarm(Base):
+    """A door alarm Guard was told has started (forced, held open, tampered with) and not yet that it ended: the end goes under the same key."""
+    __tablename__ = "door_alarm"
+    door_id: Mapped[uuid.UUID] = mapped_column(UUIDT, primary_key=True)
+    kind: Mapped[str] = mapped_column(String(20), primary_key=True)        # alarm | tamper
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUIDT, index=True)
+    dedup_key: Mapped[str] = mapped_column(String(120))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ConsoleFeedToken(Base):
+    """A PhotonConsole data source's token (`pent_...`): made by an admin, shown once, stored hashed, revocable; names the Console tenant it is
+    for (Console refuses a document that names another, as with PhotonBoard's and PhotonEdge's feeds)."""
+    __tablename__ = "console_feed_token"
+    id: Mapped[uuid.UUID] = mapped_column(UUIDT, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUIDT, index=True)
+    console_tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUIDT)
+    name: Mapped[str] = mapped_column(String(100))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUIDT)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))

@@ -38,3 +38,7 @@
   .pe-table td[data-label=""] { padding-left: 0; }
   .pe-table td:empty { display: none; }
 }
+
+/* Something to copy: a binding name, an address, a token shown once. */
+.pe-code { font-family: var(--font-mono, monospace); font-size: 0.85rem; overflow-wrap: anywhere; }
+.pe-secret { display: block; padding: 0.5rem; background: var(--surface); border-radius: var(--radius); user-select: all; }

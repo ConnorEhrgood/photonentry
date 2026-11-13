@@ -187,3 +187,48 @@ first and end to end; photon-ui and the shared `@photon/ui/auth` sign-in from th
   another repo, in its own session.
 - **Sign-in against a real PhotonID:** not run yet. Registering `entry` at the dev PhotonID (callback and signed-out addresses) is id1's
   job, and the production addresses are Connor's step (GATE P).
+
+## 2026-11-13: Step 4, door events and alarms to PhotonGuard and PhotonConsole
+
+**Built:**
+- **Door events in PhotonEntry's words** (`api/app/events.py`): granted (credential or exit button), denied with a reason ("outside its
+  schedule", "credential expired"...), forced, held open and cleared, tamper, door opened or closed, door modes. One function serves the API's
+  event list, the Guard sender and the Console feed. A topic it does not know becomes `other`, never an error.
+- **Door index** (`api/app/doorindex.py`): which door an event belongs to, by the door's token or by an access point of the controller's
+  inventory; and the cardholder, from the credential's `pe-u-<id>` user token.
+- **PhotonGuard** (`api/app/guard.py`, migration 0002's `guard_link`, `guard_cursor`, `door_alarm`):
+  - **Connection:** an organization's admin pastes the ingest token its Guard admin made (sealed; only the last four characters shown).
+    Guard's address is PhotonEntry's configuration, never a user's.
+  - **What goes:** the worker sends grants and denials as instant events on the door's binding (`entry-door-<door id>`), each asking for a
+    clip from 10 s before to 20 s after. A forced or held-open door, and tamper, start an alarm that ends under the same `dedup_key` when the
+    door clears. Door modes, opening and closing, and the exit button stay in PhotonEntry.
+  - **Exactly once, in order,** per controller. A refusal or an outage stops that organization's sending, shows in Settings, and resumes
+    where it stopped. A duplicate from a controller's crash has the same `dedup_key` (the controller's own event token).
+  - **Settings, PhotonGuard tab:** connect, replace, test, pause, disconnect, and the binding name of every door for the Guard admin.
+- **PhotonConsole** (`api/app/consolefeed.py`, `console_feed_token`):
+  - **Feed tokens:** `pent_…`, shown once, stored hashed, revocable, naming the Console tenant.
+  - **The feed:** `GET /integrations/console/v1/doors` gives each door's mode, position, alarm, lockdown and its last 24 hours' counts;
+    each controller's online state, settings and queue; alerts with severities; totals.
+  - **Isolation:** the feed reads through a new `feed` mode of row-level security that sees one organization's tenant, sites, doors,
+    controllers and events, never people or credentials.
+  - **Refusals:** a bad token gets 401 JSON with `WWW-Authenticate: Bearer`, no redirect.
+- **The contract with Guard** (`contract/guard/`): the schema of what PhotonEntry sends (from Guard's ARCHITECTURE §7.6) and samples made
+  by the real sender: a grant, a denial, a forced door and its end. Guard pins the same files when it builds its ingest.
+- **photon-ui icons** from id1: Doors uses `door`, Access uses `access` (a key).
+
+**Verified:**
+- 449 API tests on Postgres and 138 web tests, all passing.
+- 21 CRITICAL modules at 100% branch coverage. The four new ones: events, door index, Guard sender, Console feed.
+- **Guard sending:** in order, once; stops and resumes on a refusal or an outage; an alarm is one alarm until it clears; nothing is sent
+  when paused or disconnected.
+- **The feed:** it shows the right state and alerts, and seen through feed mode one organization cannot see another's doors,
+  controllers, credentials or people.
+- **Screenshots** of both new Settings tabs at the three sizes, looked at.
+- **One gap found by the tests and fixed:** the web app did not guard the Settings tabs by role (the API already refused).
+
+**Not verified:**
+- **Against a real PhotonGuard:** its ingest is its M3, not built yet. Until then PhotonEntry is tested against a fake that follows Guard's
+  documented contract. Guard's side needs (ARCHITECTURE §14): the ingest itself, an incident source `access` for started and ended door
+  alarms, and bindings that may be named `entry-door-<id>`.
+- **Against a real PhotonConsole:** a PhotonEntry data source in Console is Console's work (its own session). The feed's shape follows
+  PhotonEdge's and PhotonBoard's feeds, which Console already reads.

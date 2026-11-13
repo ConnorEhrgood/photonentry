@@ -81,12 +81,15 @@ const answers = (who) => ({
   '/tenants/t1/cardholders/h100/credentials': [200, [{ id: 'k1', kind: 'card', card_format: 'h10301', card_facility: 12, hint: '…456', enabled: true, valid_from: null, valid_to: null },
     { id: 'k2', kind: 'pin', card_format: null, card_facility: null, hint: '', enabled: true, valid_from: null, valid_to: null }]],
   '/tenants/t1/sites/s1/events': [200, EVENTS], '/tenants/t1/members': [200, MEMBERS], '/tenants/t1/audit': [200, AUDIT],
+  '/tenants/t1/integrations/guard': [200, { connected: true, enabled: true, token_hint: '…9f2c', last_ok_at: now, last_error: '', last_error_at: null, sent: 1284,
+    guard_api_url: 'https://api.guard.photonind.com', bindings: DOORS.map((d) => ({ door_id: d.id, door: d.name, site: 'Main office', binding: `entry-door-0d1b2c3d-${d.id}00-4e5f-8a9b-0c1d2e3f4a5b` })) }],
+  '/tenants/t1/integrations/console/tokens': [200, [{ id: 'k1', name: 'PhotonConsole', console_tenant_id: null, created_at: now, last_used_at: now, revoked: false }]],
 })
 
 // [file name, route, who, steps]: steps are buttons to click, radios to pick, in order.
 const PAGES = [
   ['overview', '/overview', 'owner'], ['doors', '/doors', 'owner'], ['people', '/people', 'owner'], ['person', '/people', 'owner', [{ button: 'Alice Smith' }]],
-  ['access', '/access', 'owner'], ['events', '/events', 'owner'], ['customers-tech', '/', 'tech'], ['team', '/settings/team', 'owner'], ['audit', '/settings/audit', 'owner'],
+  ['access', '/access', 'owner'], ['events', '/events', 'owner'], ['customers-tech', '/', 'tech'], ['team', '/settings/team', 'owner'], ['guard', '/settings/guard', 'owner'], ['console', '/settings/console', 'owner'], ['audit', '/settings/audit', 'owner'],
   ['setup-1-controllers', '/setup', 'setup'],
   ['setup-2-template', '/setup', 'setup', [{ button: 'Next: choose a template' }, { radio: 'Office' }]],
   ['setup-3-doors', '/setup', 'setup', [{ button: 'Next: choose a template' }, { radio: 'Office' }, { button: 'Next: which door is which' }]],

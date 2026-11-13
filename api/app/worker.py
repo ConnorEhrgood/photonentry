@@ -1,7 +1,7 @@
 """Background jobs. `python -m app.worker` runs them; keep it a single process.
 
 Now: keep the directory copy current (a periodic pull, so a lost notice delays a change and never loses it) and publish our role catalog to the
-directory. Later steps add the Guard and Console feeds, visitor-pass mail and retention.
+directory; send the doors' events to PhotonGuard (app/guard.py). Later steps add visitor-pass mail and retention.
 """
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
-from app import sync
+from app import guard, sync
 from app.config import settings
 from app.db import SystemSession
 from app.deps import get_directory
@@ -38,6 +38,9 @@ def run_job(what: str, job: Callable[[Any], Any]) -> Any:
 def tick(state: dict, clock: Callable[[], float] = time.monotonic) -> None:
     """One pass: whatever is due. `state` remembers when each job last ran."""
     now = clock()
+    sent = run_job("guard", lambda db: sum(r.sent for r in guard.forward_all(db, guard.http_post, utcnow())))
+    if sent:
+        log.info("guard: sent %d event(s)", sent)
     directory = get_directory()
     if directory is None:
         return

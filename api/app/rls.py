@@ -17,8 +17,9 @@ from typing import Any, Dict, Optional
 from sqlalchemy import event, text
 from sqlalchemy.orm import Session
 
-_SET = text("select set_config('app.mode', :mode, true), set_config('app.person_id', :person_id, true), set_config('app.admin', :admin, true)")
-NONE: Dict[str, str] = {"mode": "", "person_id": "", "admin": ""}
+_SET = text("select set_config('app.mode', :mode, true), set_config('app.person_id', :person_id, true), set_config('app.admin', :admin, true), "
+             "set_config('app.tenant_id', :tenant_id, true)")
+NONE: Dict[str, str] = {"mode": "", "person_id": "", "admin": "", "tenant_id": ""}
 
 
 def _params(ctx: Optional[Dict[str, str]]) -> Dict[str, str]:
@@ -37,3 +38,11 @@ def as_person(db: Session, person_id: Any, platform_admin: bool = False) -> None
     db.info["rls"] = ctx
     if db.in_transaction():
         db.execute(_SET, _params(ctx))   # the transaction already open must see it too
+
+
+def as_feed(db: Session, tenant_id: Any) -> None:
+    """A PhotonConsole feed's session: it sees one organization's tenant, sites, doors, controllers and events (migration 0002), nothing else."""
+    ctx = {"mode": "feed", "tenant_id": str(tenant_id)}
+    db.info["rls"] = ctx
+    if db.in_transaction():
+        db.execute(_SET, _params(ctx))

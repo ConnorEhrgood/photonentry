@@ -21,6 +21,10 @@ CRITICAL = [
     "api/app/link/service.py",          # what a controller may ask and is told
     "api/app/link/store.py",
     "api/app/link/pgstore.py",
+    "api/app/events.py",                # what a door event means, everywhere
+    "api/app/doorindex.py",             # which door (and person) an event belongs to
+    "api/app/guard.py",                 # what crosses to PhotonGuard, once and in order
+    "api/app/consolefeed.py",           # what a PhotonConsole feed sees: one organization, never people
 ]
 
 data = json.load(open(sys.argv[1]))["files"]

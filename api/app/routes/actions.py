@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.events import normalize
 from app.deps import Ctx, require, tenant_ctx
 from app.link.pgstore import new_command, notify
 from app.models import AuditLog, Cardholder, Controller, Door, DoorEvent, LinkCommand, utcnow
@@ -121,7 +122,9 @@ def events(site_id: uuid.UUID, ctx: Ctx = Depends(tenant_ctx), db: Session = Dep
                 hid = uuid.UUID(holder[5:])
             except ValueError:
                 hid = None
+        n = normalize(e.topic, e.data)
         out.append({"controller_id": str(e.controller_id), "seq": e.seq, "occurred_at": e.occurred_at.isoformat(),
+                    "kind": n.kind, "label": n.label, "severity": n.severity,
                     "received_at": e.received_at.isoformat(), "topic": e.topic, "door_id": str(door.id) if door else None,
                     "door": door.name if door else None, "cardholder_id": str(hid) if hid and hid in names else None,
                     "cardholder": names.get(hid) if hid else None, "reason": e.data.get("Reason"), "state": e.data.get("State")})

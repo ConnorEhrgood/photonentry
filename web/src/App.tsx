@@ -9,6 +9,7 @@ import { AuditPage } from './pages/Audit'
 import { CustomersPage } from './pages/Customers'
 import { DoorsPage, OverviewPage } from './pages/Doors'
 import { EventsPage } from './pages/Events'
+import { ConsoleSettingsPage, GuardSettingsPage } from './pages/Integrations'
 import { NotForYou, SettingsHub, SettingsIndex } from './pages/Hubs'
 import { PeoplePage } from './pages/People'
 import { SetupPage } from './pages/Setup'
@@ -80,8 +81,12 @@ export function App() {
           <Route element={<Needs cap="entry.events.view" />}><Route path="events" element={<EventsPage />} /></Route>
           <Route path="settings" element={<SettingsHub />}>
             <Route index element={<SettingsIndex />} />
-            <Route path="team" element={<TeamPage />} />
-            <Route path="audit" element={<AuditPage />} />
+            <Route element={<Needs cap="entry.members.view" />}><Route path="team" element={<TeamPage />} /></Route>
+            <Route element={<Needs cap="entry.config.manage" />}>
+              <Route path="guard" element={<GuardSettingsPage />} />
+              <Route path="console" element={<ConsoleSettingsPage />} />
+            </Route>
+            <Route element={<Needs cap="entry.audit.view" />}><Route path="audit" element={<AuditPage />} /></Route>
           </Route>
         </Route>
       </Route>

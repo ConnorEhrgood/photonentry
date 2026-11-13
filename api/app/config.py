@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     secrets_key: str = ""
     fingerprint_key: str = ""
 
+    # PhotonGuard's API, where door events go (ARCHITECTURE §9.1). Ours to set, never an organization's (no sender to a URL a user typed).
+    guard_api_url: str = "https://api.guard.photonind.com"
+    # This web app's address, for links back from Guard's events to PhotonEntry's.
+    web_url: str = "https://entry.photonind.com"
+
     # The link service (controllers): how long a sync with nothing to say is held open.
     link_wait_s: float = 25.0
 
