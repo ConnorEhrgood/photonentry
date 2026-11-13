@@ -30,6 +30,7 @@ The C build needs gcc, make, the libcurl and OpenSSL headers. The runner has the
 | One part | `... -m pytest api/tests`, `sim/tests`, `tests/e2e` |
 | entry-link | `make -C acap/entry-link` (host build, `-Werror`) |
 | The web app | `cd web && npx vitest run --coverage` (a ratchet: raise the thresholds, never lower them); `node scripts/screenshots.mjs [name]` shoots every page at 1440×900, 820×1180 and 390×844 into `web/screenshots/` (look at them) |
+| Sign-in against the dev PhotonID | `cd web && VITE_API_URL=https://api.test npx vite build --mode development && node scripts/signin-contract.mjs <dir>` (real PhotonID at 10.10.0.80:8085, the API faked in the browser; needs `~/keys/zitadel-dev-provisioner.pat`; makes one test person and deletes it) |
 | photon-ui copies | `node ../photon-ui/scripts/sync-vendored.mjs web/src --css --base --auth` (never edit `web/src/shell`, `ph-auth`, `tokens.css`, `ph-*.css`) |
 | The contract files | `~/.venvs/photonentry/bin/python scripts/contract.py` writes them; `--check` (run by the tests) fails if they are stale |
 

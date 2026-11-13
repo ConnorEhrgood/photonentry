@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext'
 import { useTenant } from '../auth/TenantContext'
 import { AppShell, type NavGroup, type NavItem } from '../shell/AppShell'
 import { settingsTabs } from '../pages/Hubs'
+import logo from '../assets/photon-logo.png'
 
 /** "Manage organization": people, sites and products are managed in the PhotonID directory app, not here. */
 export const DIRECTORY_URL = config.directoryAppUrl
@@ -68,6 +69,7 @@ function NoOrganization() {
   return (
     <div className="ph-auth">
       <div className="ph-card">
+        <img className="ph-auth-logo" src={logo} alt="Photon" />
         <h1>No access to PhotonEntry yet</h1>
         <p>{me?.email ? <>You are signed in as <strong>{me.email}</strong>, which</> : <>This account</>} isn’t a member of any organization that has PhotonEntry.
           Ask an administrator of your organization, or your Photon partner, to add you, or switch to another account.</p>

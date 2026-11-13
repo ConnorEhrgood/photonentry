@@ -246,3 +246,23 @@ first and end to end; photon-ui and the shared `@photon/ui/auth` sign-in from th
   screenshots).
 
 **Verified:** 144 web tests (each editor, its refusals, a viewer's read-only view) and the API suite; screenshots at the three sizes, looked at.
+
+## 2026-11-13: sign-in against the development PhotonID
+
+**Built:** `web/scripts/signin-contract.mjs`, the suite's sign-in contract for PhotonEntry (modeled on PhotonID's own). It signs in for real against
+the development PhotonID (id1's registration: a public client, code + PKCE) with a test person made through the API and deleted at the end; the
+PhotonEntry API is faked in the browser so each answer can be forced.
+
+**Verified** (all against http://10.10.0.80:8085, 10 checks):
+- **Signed out:** a deep link goes straight to PhotonID's form (no sign-in page of ours, no sign-up offered); the request uses PKCE (S256), the
+  registered redirect, and asks for PhotonEntry's API project as the audience.
+- **Sign-in:** back to exactly the deep link (`/people?q=sam#h`), and every API call carries a bearer token.
+- **Silent SSO:** a new tab signs in with one trip to PhotonID and no page shown.
+- **Refusals are pages, never loops:** a 401 right after sign-in ("We couldn't sign you in", one trip), a 403 ("No access to PhotonEntry"),
+  access pending (a page that asks again by itself and then opens the app), and no organization ("No access to PhotonEntry yet").
+- **Sign-out:** ends the PhotonID session, comes back through `/auth/signed-out` to the form (`prompt=login`); a new tab is not signed in silently.
+- **Screenshots** of each page at the three sizes, looked at. One fix: the no-organization page lacked the Photon logo the other sign-in
+  pages show.
+
+**Not covered here:** PhotonID's own pages (password reset, authenticator app, invitations, sign-up), which PhotonID's contract tests.
+Against the real PhotonEntry API: needs the API running with the dev issuer and the "entry" product in the directory catalogue (id1).
