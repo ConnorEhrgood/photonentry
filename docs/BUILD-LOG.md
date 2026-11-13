@@ -217,7 +217,7 @@ first and end to end; photon-ui and the shared `@photon/ui/auth` sign-in from th
 - **photon-ui icons** from id1: Doors uses `door`, Access uses `access` (a key).
 
 **Verified:**
-- 449 API tests on Postgres and 138 web tests, all passing.
+- The whole Python suite (API, simulator, end to end) on Postgres and 138 web tests, all passing. (An earlier version of this line and the Step 4 commit message said "449 API tests", a number that was never counted; the suite was 445 tests after the editing work below.)
 - 21 CRITICAL modules at 100% branch coverage. The four new ones: events, door index, Guard sender, Console feed.
 - **Guard sending:** in order, once; stops and resumes on a refusal or an outage; an alarm is one alarm until it clears; nothing is sent
   when paused or disconnected.
