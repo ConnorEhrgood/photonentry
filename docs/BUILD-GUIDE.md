@@ -14,11 +14,12 @@ Work through the steps in order. Stop at every **GATE** and wait for Connor. Ite
 
 | Item | State |
 |---|---|
-| Design | `docs/ARCHITECTURE.md` revision 2; Connor's answers recorded 2026-11-13; two build decisions for him to confirm (HTTPS long-poll; the link service in Python) |
+| Design | `docs/ARCHITECTURE.md` revision 2; Connor's answers recorded 2026-11-13; both build decisions confirmed (HTTPS long-poll; the link service in Python) |
 | Hardware | **None, by decision.** The build runs on the simulator (`sim/`) until the bench kit is bought (GATE H) |
 | PhotonID directory | Built, not in production. `entry` is not in its catalog yet. Step 2 uses its contract and fake |
-| Repo `~/projects/photonaccess` | Git, branch `master`, **no remote** (Connor creates GitHub repos). Commit locally |
+| Repo `~/projects/photonaccess` | Git; remote `origin` = github.com/ConnorEhrgood/photonentry (private, created 2026-11-13). Push to `main` as you go, never force-push |
 | Step 1 | Done 2026-11-13 (BUILD-LOG.md) |
+| Step 2 | Done 2026-11-13 (BUILD-LOG.md): database, directory, the integrator's API, the link on Postgres |
 
 **Dev ports** (they collide with no other agent): API and link **8133**, simulator **8134**, web **5193**.
 
@@ -69,7 +70,7 @@ Testable with no hardware and no database.
 | **`entry-link`** (C): key generation and signing, hello and claim, the sync loop, applying settings by difference, reading events into a persistent queue, commands; a host build for tests; the ACAP manifest | `acap/entry-link/` |
 | **Tests**: unit tests (compiler, iCalendar, signatures, store, link service, simulator decisions); **end to end**: the real C `entry-link` against the simulator and the cloud (claim, settings at the door, a card granted and denied by schedule, events in order, an unlock command, a lockdown, the cloud down for a while with nothing lost) | `api/tests/`, `sim/tests/`, `tests/e2e/` |
 
-## 2. Step 2: database and directory
+## 2. Step 2: database and directory (done 2026-11-13)
 
 1. **Migration `0001`:**
    - the three database roles (`entry_app`, `entry_system`, owner);

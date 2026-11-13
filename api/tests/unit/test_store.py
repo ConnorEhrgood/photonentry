@@ -1,7 +1,10 @@
 """The store's rules, written against the interface so the Postgres store (Step 2) runs the same tests."""
 from __future__ import annotations
 
+import time
 from datetime import datetime, timedelta, timezone
+
+import os
 
 import pytest
 
@@ -12,14 +15,27 @@ T0 = datetime(2026, 11, 13, 12, 0, tzinfo=timezone.utc)
 DEVICE = {"model": "A1610", "serial": "B8A44F000001", "firmware": "12.6.1", "app_version": "0.1.0"}
 
 
-@pytest.fixture(params=["memory"])
+STORES = ["memory"] + (["postgres"] if os.environ.get("PHOTONENTRY_DB_TESTS") else [])
+
+
+@pytest.fixture(params=STORES)
 def store(request):
-    return MemoryStore()
+    if request.param == "memory":
+        return MemoryStore()
+    # The same rules on Postgres (the database suite's schema fixture has migrated it; each test starts empty).
+    request.getfixturevalue("clean")
+    from app.db import SystemSession
+    from app.link.pgstore import PgStore
+    return PgStore(SystemSession, request.getfixturevalue("listener"))
+
+
+TENANT_A, SITE_1 = "0a000000-0000-4000-8000-00000000000a", "05000000-0000-4000-8000-000000000001"
+TENANT_B, SITE_2 = "0b000000-0000-4000-8000-00000000000b", "05000000-0000-4000-8000-000000000002"
 
 
 def _claimed(store, kid="k1"):
     store.hello(kid, b"p" * 32, "ABCD-EFGH", DEVICE, T0)
-    return store.claim("ABCD-EFGH", "tenant-a", "site-1", T0)
+    return store.claim("ABCD-EFGH", TENANT_A, SITE_1, T0)
 
 
 def ev(seq):
@@ -35,9 +51,9 @@ def test_hello_records_a_pending_controller_and_refreshes_it(store):
 
 def test_claim_by_code_once(store):
     c = _claimed(store)
-    assert c.state == "claimed" and c.tenant_id == "tenant-a" and c.site_id == "site-1" and c.claim_code == ""
+    assert c.state == "claimed" and c.tenant_id == TENANT_A and c.site_id == SITE_1 and c.claim_code == ""
     with pytest.raises(NotFound):
-        store.claim("ABCD-EFGH", "tenant-b", "site-9", T0)
+        store.claim("ABCD-EFGH", TENANT_B, SITE_2, T0)
     # A claimed controller keeps its state on a later hello.
     assert store.hello("k1", b"p" * 32, "QQQQ-QQQQ", DEVICE, T0).state == "claimed"
 
@@ -45,13 +61,15 @@ def test_claim_by_code_once(store):
 def test_claim_codes_expire_and_are_case_insensitive(store):
     store.hello("k1", b"p" * 32, "ABCD-EFGH", DEVICE, T0)
     with pytest.raises(NotFound):
-        store.claim("ABCD-EFGH", "t", "s", T0 + timedelta(seconds=CLAIM_TTL_S + 1))
-    assert store.claim("abcd-efgh", "t", "s", T0).state == "claimed"
+        store.claim("ABCD-EFGH", TENANT_A, SITE_1, T0 + timedelta(seconds=CLAIM_TTL_S + 1))
+    assert store.claim("abcd-efgh", TENANT_A, SITE_1, T0).state == "claimed"
 
 
 def test_unknown_controllers(store):
     assert store.by_key("nope") is None
-    for call in (lambda: store.get("x"), lambda: store.disable("x"), lambda: store.publish("x", {}), lambda: store.command_state("x")):
+    missing = "0f000000-0000-4000-8000-0000000000ff"
+    for call in (lambda: store.get("x"), lambda: store.disable("x"), lambda: store.publish("x", {}), lambda: store.command_state("x"),
+                 lambda: store.get(missing)):
         with pytest.raises(NotFound):
             call()
 
@@ -76,10 +94,11 @@ def test_settings_versions(store):
 def test_state_inventory_and_health(store):
     c = _claimed(store)
     store.set_inventory(c.id, Inventory(doors=[InventoryDoor(token="d1", access_points=["ap1"])]))
-    store.set_applied(c.id, 3, "")
+    store.set_applied(c.id, 3, "capacity", 4)
     store.seen(c.id, T0, {"uptime_s": 5})
     got = store.get(c.id)
     assert got.inventory.doors[0].token == "d1" and got.applied_version == 3 and got.health == {"uptime_s": 5}
+    assert (got.failed_version, got.apply_error) == (4, "capacity")
     store.disable(c.id)
     assert store.get(c.id).state == "disabled"
 
@@ -101,7 +120,7 @@ def test_commands_expire_redeliver_and_finish_once(store):
 def test_commands_are_per_controller_and_only_in_service(store):
     c = _claimed(store)
     store.hello("k2", b"q" * 32, "ZZZZ-ZZZZ", DEVICE, T0)
-    other = store.claim("ZZZZ-ZZZZ", "tenant-b", "site-2", T0)
+    other = store.claim("ZZZZ-ZZZZ", TENANT_B, SITE_2, T0)
     cmd = store.command(c.id, "lockdown", "d1", "Jane", T0)
     assert store.due_commands(other.id, T0) == []
     store.finish_command(other.id, cmd.id, True, "")                                       # not its command: ignored
@@ -111,11 +130,22 @@ def test_commands_are_per_controller_and_only_in_service(store):
         store.command(c.id, "access", "d1", "Jane", T0)
 
 
+def _changes(store, cid, m):
+    for _ in range(100):                     # the Postgres store learns through LISTEN/NOTIFY, a moment after the commit
+        if store.mark(cid) != m:
+            return True
+        time.sleep(0.02)
+    return False
+
+
 def test_marks_change_when_there_is_something_new(store):
     c = _claimed(store)
     m = store.mark(c.id)
     store.publish(c.id, {})
-    assert store.mark(c.id) != m
+    assert _changes(store, c.id, m)
     m = store.mark(c.id)
     store.command(c.id, "access", "d1", "", T0)
-    assert store.mark(c.id) != m
+    assert _changes(store, c.id, m)
+    m = store.mark(c.id)
+    store.disable(c.id)
+    assert _changes(store, c.id, m)

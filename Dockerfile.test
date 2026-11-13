@@ -1,0 +1,8 @@
+# The whole suite in one image: Python (cloud, simulator), and the C toolchain for entry-link's host build (the end-to-end tests build it).
+FROM python:3.12.15-slim
+WORKDIR /repo
+RUN apt-get update && apt-get install -y --no-install-recommends gcc make libc6-dev libcurl4-openssl-dev libssl-dev libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY api/requirements.txt api/requirements-dev.txt /tmp/
+RUN pip install --no-cache-dir -r /tmp/requirements-dev.txt
+COPY . .

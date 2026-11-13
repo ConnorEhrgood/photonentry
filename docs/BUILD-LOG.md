@@ -71,3 +71,66 @@ Python API instead of Go; PINs encrypted, not hashed.
   are possible and losses are not; `ref` identifies a duplicate, and Step 4 de-duplicates by it.
 - **Offline capacity.** The on-disk queue holds 10,000 events, and the controller's log holds 30,000 more. A site that makes over about
   40,000 events during one outage loses the oldest.
+
+## 2026-11-13: Step 2, the database and the directory
+
+**Built:**
+- **Migration 0001** writes its tables out in SQL, so it means the same thing forever:
+  - the three database roles;
+  - the directory copy, with person documents' `platform_admin` and `partners`;
+  - the audit log (append-only for every role);
+  - controllers, settings versions, link commands and door events;
+  - doors, schedules, the site holiday calendar, access groups, group memberships;
+  - cardholders and credentials (sealed, fingerprinted).
+- **Row-level security on every table**, with helpers that answer site questions by the strongest entry covering the site:
+  - configuration is written by admins at their sites;
+  - credentials are readable by admins only;
+  - cardholders are readable by operators and up;
+  - commands are written by operators at their sites, in their own name;
+  - pending controllers are seen by the system role only.
+- **Sign-in and the directory**, copied from PhotonVox's working code: token verification, first sign-in resolution, notify-then-pull,
+  publishing the role catalog, the worker's periodic pull. Staff are now recognized from the directory itself: `platform_admin`, or
+  membership of partner "photon".
+- **The link on Postgres** (`PgStore`) passes the same store tests as the in-memory store. A held sync wakes through `LISTEN/NOTIFY`,
+  counted in memory, so it costs no queries. Store calls run in the thread pool.
+- **The integrator's API:**
+  - claim a controller by code;
+  - rename or disable it;
+  - doors from the controller's inventory, schedules, holidays, access groups;
+  - cardholders with their groups, credentials, and a bulk CSV import that checks every row before writing any;
+  - publish: compile per controller, store a version only where it changed, everything or nothing;
+  - remote door actions, lockdown and its end, command status, events with door and cardholder names, the audit trail ("Partner support"
+    for partner staff).
+
+**Verified:**
+- 379 tests pass on the runner (a local Postgres 16) and on LXC 800 (Postgres 16 in Docker).
+- The 17 CRITICAL modules are at 100% branch coverage (`api/tests/check_critical.py`); the whole is at 98%.
+- **Isolation:** all 38 routes are closed to another organization's owner and to a stranger. Nothing of the first organization is found,
+  shown or changed, even when named under the second organization's id.
+- **Database level:** site-limited people see and write only their sites. Commands go in their own names only. The audit log refuses UPDATE
+  and DELETE from every role.
+- **End to end on Postgres, through the API, with the real C `entry-link` and the simulator,** each step by a signed-in person:
+  - claim, set up and publish;
+  - a grant that comes back with the cardholder's name;
+  - a remote unlock carried out;
+  - lockdown and its end;
+  - every step in the owner's audit trail.
+
+**Found and fixed: the start-up guard missed table owners.** It refused logins that were superusers or had BYPASSRLS. A role that **owns the
+tables** also skips their policies, with neither flag, and the local test owner showed it. The guard now refuses any login that owns a public
+table too. PhotonVox has the same check; its test database's owner is a superuser, so the gap never showed there. Worth the same change in
+PhotonVox, in its own session.
+
+**Decided while building (small; Connor may reverse):**
+- **Door events are a plain table for now**, indexed by site and time. They become a TimescaleDB hypertable when volume calls for it, as
+  PhotonGuard did.
+- **One holiday calendar per site** (ARCHITECTURE §6.1's site calendar), listed for every schedule that is off on holidays.
+- **Operators can read every cardholder's name in their organization** (events show who opened a door). Credentials stay admins-only.
+- **A site-limited admin may add cardholders to the organization,** but give them only their own sites' groups. Removing a cardholder
+  needs the right at every site they belong to.
+- **Card numbers and PINs** are unique per organization, enforced by a keyed fingerprint (`FINGERPRINT_KEY`, separate from `SECRETS_KEY`
+  so that rotating the sealing key changes no fingerprint).
+- **There are no platform pages yet:** PhotonVox's platform routes were not copied.
+
+**Not done here (later steps):** the web app (Step 3); door events normalized and sent to Guard and Console (Step 4); `PhotonEntry` in
+PhotonID's catalog (GATE P).

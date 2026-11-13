@@ -1,0 +1,1 @@
+Vendored from photonid/directory/client at commit 7ae7808 (last change to the client: b3e8c7f, person documents carry `platform_admin` and `partners`), 2026-11-13. Do not edit: re-copy from photonid. SOURCE.sha256 is checked by tests/unit/test_vendored.py.

@@ -1,0 +1,1 @@
+pgserver==0.1.4   # development only: a throwaway local Postgres for scripts/with-local-pg.py (the runner has no Docker)

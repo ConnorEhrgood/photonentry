@@ -42,6 +42,7 @@ class Controller:
     site_id: Optional[str] = None
     inventory: Optional[Inventory] = None
     applied_version: int = 0
+    failed_version: int = 0
     apply_error: str = ""
     ack_seq: int = 0
     last_seen: Optional[datetime] = None
@@ -66,7 +67,7 @@ class Store(Protocol):
     def get(self, controller_id: str) -> Controller: ...
     def seen(self, controller_id: str, now: datetime, health: Dict[str, Any]) -> None: ...
     def set_inventory(self, controller_id: str, inventory: Inventory) -> None: ...
-    def set_applied(self, controller_id: str, version: int, error: str) -> None: ...
+    def set_applied(self, controller_id: str, version: int, error: str, failed_version: int = 0) -> None: ...
     def publish(self, controller_id: str, document: Dict[str, Any]) -> int: ...
     def latest(self, controller_id: str) -> Optional[Tuple[int, Dict[str, Any]]]: ...
     def add_events(self, controller_id: str, events: List[Event], now: datetime) -> int: ...
@@ -144,10 +145,10 @@ class MemoryStore:
         with self._lock:
             self._get(controller_id).inventory = inventory.model_copy(deep=True)
 
-    def set_applied(self, controller_id: str, version: int, error: str) -> None:
+    def set_applied(self, controller_id: str, version: int, error: str, failed_version: int = 0) -> None:
         with self._lock:
             c = self._get(controller_id)
-            c.applied_version, c.apply_error = version, error
+            c.applied_version, c.apply_error, c.failed_version = version, error, failed_version
 
     # -- settings ----------------------------------------------------------------------------------------------------------------------------------
 

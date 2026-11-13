@@ -5,7 +5,8 @@ controller that is pending (not yet claimed) learns only that; a disabled one le
 with no detail (the reason goes to our log).
 
 Long-poll: a sync with `wait: true` and nothing to answer is held until there is something (new settings, a command, a state change) or
-`wait_s` passes. Step 1 checks the store's change counter every `poll_s`; Step 2 replaces that with Postgres LISTEN/NOTIFY.
+`wait_s` passes. The store's change counter (`mark`) is checked every `poll_s`: in memory for both stores (the Postgres store's is fed by
+LISTEN/NOTIFY), so a held sync costs no database queries. Store calls run in the thread pool: they block (Postgres), the event loop must not.
 """
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ from datetime import datetime, timezone
 from typing import Callable, Optional
 
 from fastapi import APIRouter, Request
+from starlette.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
@@ -77,7 +79,7 @@ def router(link: Link) -> APIRouter:
                                  int(now.timestamp()))
         except signing.LinkAuthError as e:
             return _refuse(401, str(e))
-        c = link.store.hello(kid, public, msg.claim_code, msg.device.model_dump(), now)
+        c = await run_in_threadpool(link.store.hello, kid, public, msg.claim_code, msg.device.model_dump(), now)
         return HelloResponse(state=c.state, controller_id=c.id if c.state == "claimed" else None).model_dump(mode="json")
 
     @r.post("/sync")
@@ -92,11 +94,11 @@ def router(link: Link) -> APIRouter:
             return c.public_key if c else None
 
         try:
-            kid = signing.verify(request.headers.get(signing.HEADER), "POST", request.url.path, body, public_key_for, link.nonces,
-                                 int(now.timestamp()))
+            kid = await run_in_threadpool(signing.verify, request.headers.get(signing.HEADER), "POST", request.url.path, body, public_key_for,
+                                          link.nonces, int(now.timestamp()))
         except signing.LinkAuthError as e:
             return _refuse(401, str(e))
-        c = link.store.by_key(kid)
+        c = await run_in_threadpool(link.store.by_key, kid)
         assert c is not None   # verify() found it a moment ago and controllers are never deleted
         if c.state != "claimed":
             return _refuse(403, f"controller {c.id} is {c.state}", state=c.state)
@@ -105,26 +107,32 @@ def router(link: Link) -> APIRouter:
         except (ValidationError, ValueError):
             return _refuse(400, "malformed sync")
 
-        link.store.seen(c.id, now, msg.health.model_dump(mode="json"))
-        if msg.inventory is not None:
-            link.store.set_inventory(c.id, msg.inventory)
-        link.store.set_applied(c.id, msg.applied_version, msg.apply_error)
-        for res in msg.results:
-            link.store.finish_command(c.id, res.id, res.ok, res.error)
-        ack = link.store.add_events(c.id, msg.events, now)
+        ack = await run_in_threadpool(_record, link, c.id, msg, now)
 
         deadline = time.monotonic() + (link.wait_s if msg.wait and not msg.events else 0)
         while True:
             mark = link.store.mark(c.id)
-            answer = _answer(link, c.id, msg.applied_version, msg.failed_version, ack)
+            answer = await run_in_threadpool(_answer, link, c.id, msg.applied_version, msg.failed_version, ack)
             if answer.settings or answer.commands or time.monotonic() >= deadline:
                 return answer.model_dump(mode="json")
             while link.store.mark(c.id) == mark and time.monotonic() < deadline:
                 await asyncio.sleep(link.poll_s)
-            if link.store.get(c.id).state != "claimed":
-                return _refuse(403, f"controller {c.id} left service while waiting", state=link.store.get(c.id).state)
+            state = (await run_in_threadpool(link.store.get, c.id)).state
+            if state != "claimed":
+                return _refuse(403, f"controller {c.id} left service while waiting", state=state)
 
     return r
+
+
+def _record(link: Link, controller_id: str, msg: SyncRequest, now: datetime) -> int:
+    """What the controller told us: its health, inventory, applied version, command results and events. Returns the new ack."""
+    link.store.seen(controller_id, now, msg.health.model_dump(mode="json"))
+    if msg.inventory is not None:
+        link.store.set_inventory(controller_id, msg.inventory)
+    link.store.set_applied(controller_id, msg.applied_version, msg.apply_error, msg.failed_version)
+    for res in msg.results:
+        link.store.finish_command(controller_id, res.id, res.ok, res.error)
+    return link.store.add_events(controller_id, msg.events, now)
 
 
 def _answer(link: Link, controller_id: str, applied_version: int, failed_version: int, ack: int) -> SyncResponse:
