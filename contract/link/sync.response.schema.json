@@ -1,0 +1,110 @@
+{
+  "$defs": {
+    "Command": {
+      "additionalProperties": false,
+      "properties": {
+        "actor": {
+          "default": "",
+          "description": "Who asked, for the controller's own log",
+          "title": "Actor",
+          "type": "string"
+        },
+        "door": {
+          "description": "The controller's door token",
+          "title": "Door",
+          "type": "string"
+        },
+        "expires_at": {
+          "description": "Not carried out after this time: a late unlock is worse than none",
+          "format": "date-time",
+          "title": "Expires At",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "access",
+            "lock",
+            "unlock",
+            "lockdown",
+            "lockdown_release"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "door",
+        "expires_at"
+      ],
+      "title": "Command",
+      "type": "object"
+    },
+    "Settings": {
+      "additionalProperties": false,
+      "properties": {
+        "document": {
+          "additionalProperties": true,
+          "description": "The compiled settings for this controller (contract/settings/axis-settings.schema.json)",
+          "title": "Document",
+          "type": "object"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "document"
+      ],
+      "title": "Settings",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "ack_seq": {
+      "description": "Every event up to this sequence number is stored; send from the next one",
+      "minimum": 0,
+      "title": "Ack Seq",
+      "type": "integer"
+    },
+    "commands": {
+      "items": {
+        "$ref": "#/$defs/Command"
+      },
+      "title": "Commands",
+      "type": "array"
+    },
+    "poll_after_ms": {
+      "default": 0,
+      "description": "Wait this long before the next sync",
+      "minimum": 0,
+      "title": "Poll After Ms",
+      "type": "integer"
+    },
+    "settings": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Settings"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "ack_seq"
+  ],
+  "title": "SyncResponse",
+  "type": "object"
+}

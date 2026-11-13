@@ -1,0 +1,13 @@
+{
+  "_comment": "A fixed signed request. Both signers (api/app/link/signing.py and acap/entry-link/app/sign.c) are tested against it. The private key is RFC 8032's first test key: public, for tests only.",
+  "private_key_hex": "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
+  "public_key": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo",
+  "key_id": "21fe31dfa154a261",
+  "t": 1800000000,
+  "nonce": "00112233445566778899aabbccddeeff",
+  "method": "POST",
+  "path": "/link/v1/sync",
+  "body": "{\"applied_version\":3,\"events\":[],\"wait\":true}",
+  "message": "photonentry-link-v1\n1800000000\n00112233445566778899aabbccddeeff\nPOST\n/link/v1/sync\n9fa7ecb674f39bba0cdb7303ffda5a77002ad2032c37d8cc5acff68f3928c761",
+  "header": "k=21fe31dfa154a261,t=1800000000,n=00112233445566778899aabbccddeeff,v1=xFaIpSc2fMop4IFgK4vEm50sSrUl7NV7sbZ7zVvmQOhRHRUm0aiOjRSAMYPoj1iZxGZxhEA-tNSqnchvyhAeCQ"
+}

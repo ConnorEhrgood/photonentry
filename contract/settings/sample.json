@@ -1,0 +1,284 @@
+{
+  "format": "axis-pacs-1",
+  "controller_id": "ctl-a",
+  "site_id": "cw-main",
+  "timezone": "America/New_York",
+  "schedules": [
+    {
+      "token": "pe-s-evenings",
+      "Name": "Evenings",
+      "Description": "",
+      "Attribute": [],
+      "ScheduleDefinition": "BEGIN:VCALENDAR\r\nPRODID:-//Photon//PhotonEntry//EN\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nDTSTART:20000103T180000\r\nDTEND:20000104T000000\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+      "ExceptionScheduleDefinition": ""
+    },
+    {
+      "token": "pe-s-office",
+      "Name": "Office hours",
+      "Description": "",
+      "Attribute": [],
+      "ScheduleDefinition": "BEGIN:VCALENDAR\r\nPRODID:-//Photon//PhotonEntry//EN\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nDTSTART:20000103T080000\r\nDTEND:20000103T180000\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+      "ExceptionScheduleDefinition": "BEGIN:VCALENDAR\r\nPRODID:-//Photon//PhotonEntry//EN\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nDTSTART;VALUE=DATE:20261225\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+    }
+  ],
+  "users": [
+    {
+      "token": "pe-u-alice",
+      "Name": "Alice Smith",
+      "Description": "",
+      "Attribute": []
+    },
+    {
+      "token": "pe-u-bob",
+      "Name": "Bob Jones",
+      "Description": "",
+      "Attribute": []
+    },
+    {
+      "token": "pe-u-carol",
+      "Name": "Carol Cleaner",
+      "Description": "",
+      "Attribute": []
+    }
+  ],
+  "access_profiles": [
+    {
+      "token": "pe-g-cleaners",
+      "Name": "Cleaners",
+      "Description": "",
+      "Enabled": true,
+      "Schedule": [
+        "standard_always"
+      ],
+      "AuthenticationProfile": [],
+      "Attribute": [],
+      "AccessPolicy": [
+        {
+          "AccessPoint": "ap-a2-in",
+          "AuthorizationProfile": [],
+          "Attribute": [],
+          "Schedule": [
+            "pe-s-evenings"
+          ]
+        }
+      ]
+    },
+    {
+      "token": "pe-g-it",
+      "Name": "IT",
+      "Description": "",
+      "Enabled": true,
+      "Schedule": [
+        "standard_always"
+      ],
+      "AuthenticationProfile": [],
+      "Attribute": [],
+      "AccessPolicy": [
+        {
+          "AccessPoint": "ap-a1-in",
+          "AuthorizationProfile": [],
+          "Attribute": [],
+          "Schedule": [
+            "standard_always"
+          ]
+        },
+        {
+          "AccessPoint": "ap-a1-out",
+          "AuthorizationProfile": [],
+          "Attribute": [],
+          "Schedule": [
+            "standard_always"
+          ]
+        }
+      ]
+    },
+    {
+      "token": "pe-g-staff",
+      "Name": "Staff",
+      "Description": "",
+      "Enabled": true,
+      "Schedule": [
+        "standard_always"
+      ],
+      "AuthenticationProfile": [],
+      "Attribute": [],
+      "AccessPolicy": [
+        {
+          "AccessPoint": "ap-a1-in",
+          "AuthorizationProfile": [],
+          "Attribute": [],
+          "Schedule": [
+            "pe-s-office"
+          ]
+        },
+        {
+          "AccessPoint": "ap-a1-out",
+          "AuthorizationProfile": [],
+          "Attribute": [],
+          "Schedule": [
+            "pe-s-office"
+          ]
+        },
+        {
+          "AccessPoint": "ap-a2-in",
+          "AuthorizationProfile": [],
+          "Attribute": [],
+          "Schedule": [
+            "pe-s-office"
+          ]
+        }
+      ]
+    }
+  ],
+  "credentials": [
+    {
+      "token": "pe-c-alice-card",
+      "UserToken": "pe-u-alice",
+      "Description": "",
+      "Enabled": true,
+      "Status": "Enabled",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "IdData": [
+        {
+          "Name": "Card",
+          "Value": "02004fcb"
+        }
+      ],
+      "Attribute": [],
+      "AuthenticationProfile": [],
+      "CredentialAccessProfile": [
+        {
+          "AccessProfile": "pe-g-it",
+          "ValidFrom": "",
+          "ValidTo": ""
+        },
+        {
+          "AccessProfile": "pe-g-staff",
+          "ValidFrom": "",
+          "ValidTo": ""
+        }
+      ]
+    },
+    {
+      "token": "pe-c-alice-pin",
+      "UserToken": "pe-u-alice",
+      "Description": "",
+      "Enabled": true,
+      "Status": "Enabled",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "IdData": [
+        {
+          "Name": "PIN",
+          "Value": "4821"
+        }
+      ],
+      "Attribute": [],
+      "AuthenticationProfile": [],
+      "CredentialAccessProfile": [
+        {
+          "AccessProfile": "pe-g-it",
+          "ValidFrom": "",
+          "ValidTo": ""
+        },
+        {
+          "AccessProfile": "pe-g-staff",
+          "ValidFrom": "",
+          "ValidTo": ""
+        }
+      ]
+    },
+    {
+      "token": "pe-c-bob-card",
+      "UserToken": "pe-u-bob",
+      "Description": "",
+      "Enabled": true,
+      "Status": "Enabled",
+      "ValidFrom": "2026-01-01T00:00:00Z",
+      "ValidTo": "2027-01-01T00:00:00Z",
+      "IdData": [
+        {
+          "Name": "Card",
+          "Value": "03bd5b7dde"
+        }
+      ],
+      "Attribute": [],
+      "AuthenticationProfile": [],
+      "CredentialAccessProfile": [
+        {
+          "AccessProfile": "pe-g-staff",
+          "ValidFrom": "",
+          "ValidTo": ""
+        }
+      ]
+    },
+    {
+      "token": "pe-c-carol-card",
+      "UserToken": "pe-u-carol",
+      "Description": "",
+      "Enabled": false,
+      "Status": "Disabled",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "IdData": [
+        {
+          "Name": "Card",
+          "Value": "00abcdef"
+        }
+      ],
+      "Attribute": [],
+      "AuthenticationProfile": [],
+      "CredentialAccessProfile": [
+        {
+          "AccessProfile": "pe-g-cleaners",
+          "ValidFrom": "",
+          "ValidTo": ""
+        }
+      ]
+    }
+  ],
+  "doors": [
+    {
+      "token": "door-a1",
+      "Name": "Front door",
+      "AccessTime": "PT7S",
+      "OpenTooLongTime": "PT30S",
+      "PreAlarmTime": "PT5S",
+      "DoorScheduleConfiguration": "pe-d-front"
+    },
+    {
+      "token": "door-a2",
+      "Name": "Side door",
+      "AccessTime": "PT5S",
+      "OpenTooLongTime": "PT30S",
+      "PreAlarmTime": "PT5S",
+      "DoorScheduleConfiguration": ""
+    }
+  ],
+  "door_schedules": [
+    {
+      "token": "pe-d-front",
+      "Name": "Front door unlock schedule",
+      "Description": "",
+      "DoorSchedule": [
+        {
+          "ScheduledState": [
+            {
+              "ScheduleToken": [
+                "pe-s-office"
+              ],
+              "EnterAction": "Unlock"
+            },
+            {
+              "ScheduleToken": [
+                "standard_always"
+              ],
+              "EnterAction": "Lock"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

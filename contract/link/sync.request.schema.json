@@ -1,0 +1,223 @@
+{
+  "$defs": {
+    "CommandResult": {
+      "additionalProperties": false,
+      "properties": {
+        "error": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Error",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 40,
+          "title": "Id",
+          "type": "string"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "ok"
+      ],
+      "title": "CommandResult",
+      "type": "object"
+    },
+    "Event": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "e.g. CredentialToken, CredentialHolderName, Reason, State",
+          "title": "Data",
+          "type": "object"
+        },
+        "occurred_at": {
+          "description": "The controller's time",
+          "format": "date-time",
+          "title": "Occurred At",
+          "type": "string"
+        },
+        "ref": {
+          "default": "",
+          "description": "The controller's own id for the event, when it has one",
+          "maxLength": 64,
+          "title": "Ref",
+          "type": "string"
+        },
+        "seq": {
+          "description": "Per controller, from 1, never reused: the controller's queue order",
+          "minimum": 1,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "source": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "e.g. AccessPointToken, DoorToken",
+          "title": "Source",
+          "type": "object"
+        },
+        "topic": {
+          "description": "The controller's event topic, e.g. tns1:AccessControl/AccessGranted/Credential",
+          "maxLength": 200,
+          "title": "Topic",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "occurred_at",
+        "topic"
+      ],
+      "title": "Event",
+      "type": "object"
+    },
+    "Health": {
+      "additionalProperties": false,
+      "properties": {
+        "clock": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Clock"
+        },
+        "queued_events": {
+          "default": 0,
+          "description": "Events read from the controller and not yet acknowledged",
+          "minimum": 0,
+          "title": "Queued Events",
+          "type": "integer"
+        },
+        "uptime_s": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Uptime S",
+          "type": "integer"
+        }
+      },
+      "title": "Health",
+      "type": "object"
+    },
+    "Inventory": {
+      "additionalProperties": false,
+      "description": "What the controller has, read from its door-control and access-point services. Doors in PhotonEntry are mapped to these tokens.",
+      "properties": {
+        "doors": {
+          "items": {
+            "$ref": "#/$defs/InventoryDoor"
+          },
+          "title": "Doors",
+          "type": "array"
+        }
+      },
+      "title": "Inventory",
+      "type": "object"
+    },
+    "InventoryDoor": {
+      "additionalProperties": false,
+      "properties": {
+        "access_points": {
+          "description": "The access points (reader sides) that open this door",
+          "items": {
+            "type": "string"
+          },
+          "title": "Access Points",
+          "type": "array"
+        },
+        "name": {
+          "default": "",
+          "maxLength": 128,
+          "title": "Name",
+          "type": "string"
+        },
+        "token": {
+          "maxLength": 64,
+          "title": "Token",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token"
+      ],
+      "title": "InventoryDoor",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "applied_version": {
+      "default": 0,
+      "description": "The settings version now applied on the controller (0: none)",
+      "minimum": 0,
+      "title": "Applied Version",
+      "type": "integer"
+    },
+    "apply_error": {
+      "default": "",
+      "description": "Why `failed_version` could not be applied",
+      "maxLength": 1000,
+      "title": "Apply Error",
+      "type": "string"
+    },
+    "events": {
+      "items": {
+        "$ref": "#/$defs/Event"
+      },
+      "maxItems": 500,
+      "title": "Events",
+      "type": "array"
+    },
+    "failed_version": {
+      "default": 0,
+      "description": "A version the controller received and could not apply (0: none). Not sent again until a newer one exists; the controller retries the copy it has on its own",
+      "minimum": 0,
+      "title": "Failed Version",
+      "type": "integer"
+    },
+    "health": {
+      "$ref": "#/$defs/Health"
+    },
+    "inventory": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Inventory"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Sent at start and whenever it changes"
+    },
+    "results": {
+      "items": {
+        "$ref": "#/$defs/CommandResult"
+      },
+      "maxItems": 100,
+      "title": "Results",
+      "type": "array"
+    },
+    "wait": {
+      "default": false,
+      "description": "Hold the request open until there is something to send, or the wait ends",
+      "title": "Wait",
+      "type": "boolean"
+    }
+  },
+  "title": "SyncRequest",
+  "type": "object"
+}

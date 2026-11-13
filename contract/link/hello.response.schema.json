@@ -1,0 +1,31 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "controller_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Controller Id"
+    },
+    "state": {
+      "enum": [
+        "pending",
+        "claimed",
+        "disabled"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "state"
+  ],
+  "title": "HelloResponse",
+  "type": "object"
+}

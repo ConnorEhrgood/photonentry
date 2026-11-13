@@ -1,0 +1,62 @@
+{
+  "$defs": {
+    "Device": {
+      "additionalProperties": false,
+      "properties": {
+        "app_version": {
+          "maxLength": 32,
+          "title": "App Version",
+          "type": "string"
+        },
+        "firmware": {
+          "maxLength": 64,
+          "title": "Firmware",
+          "type": "string"
+        },
+        "model": {
+          "maxLength": 64,
+          "title": "Model",
+          "type": "string"
+        },
+        "serial": {
+          "maxLength": 64,
+          "title": "Serial",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model",
+        "serial",
+        "firmware",
+        "app_version"
+      ],
+      "title": "Device",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "claim_code": {
+      "description": "The code the controller shows its installer (Crockford base32, random, made on the controller)",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$",
+      "title": "Claim Code",
+      "type": "string"
+    },
+    "device": {
+      "$ref": "#/$defs/Device"
+    },
+    "public_key": {
+      "description": "Ed25519 public key, raw 32 bytes, base64url without padding",
+      "maxLength": 64,
+      "title": "Public Key",
+      "type": "string"
+    }
+  },
+  "required": [
+    "public_key",
+    "claim_code",
+    "device"
+  ],
+  "title": "HelloRequest",
+  "type": "object"
+}

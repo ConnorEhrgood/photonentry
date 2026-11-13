@@ -1,6 +1,7 @@
 # PhotonEntry — architecture
 
-**Status:** plan, revision 2, 2026-11-13, for Connor's approval. Nothing is built, bought or registered. Revision 2 follows Connor's answers to
+**Status:** revision 2, 2026-11-13, with Connor's answers to it recorded the same day ("Answers to revision 2" below); the build has started
+(BUILD-GUIDE.md). Nothing is bought or registered. Revision 2 follows Connor's answers to
 revision 1 (below). It replaces revision 1's hardware choice (UniFi doors behind a PhotonEdge) with **autonomous Axis controllers fed directly
 from the cloud**, and adds licensing in Pennsylvania, Ohio and West Virginia. Hardware facts come from desk research done on 2026-11-13 (vendor
 documents, datasheets, store pages, state codes). Anything marked **(verify)** came from one weak source or none, and is on the bench list in
@@ -24,6 +25,22 @@ and keeps working when everything above it is gone.
 - He sees the **Axis** controllers as good options. Ideally there is no PhotonEdge requirement per site; the PhotonEdge stays optional, for
   cameras and other on-site work.
 
+**Answers to revision 2 (Connor, 2026-11-13; decided):**
+- **Start the build without hardware.** No bench kit is bought for now. The build runs against a simulator of the Axis access-control API made
+  from Axis's public documentation (BUILD-GUIDE Step 1); the bench tests in §3.6 wait for hardware.
+- **Assume the latest AXIS OS lets a third-party app use the access-control API.** (§3.2's firmware-track question becomes a bench check, not a blocker.)
+- **`entry-link` does not affect the UL 294 listing**: Connor's position.
+- **Avoid Axis's cloud (O3C).** `entry-link` connects out on its own. O3C is kept only as a documented fallback, not in the plan of record.
+- **Akuvox comes from Nelly's Security and SS&Si** (Connor's distributors). Closed.
+- **No contact with Axis or Akuvox for now.** The axis.com account for app signing is a later step, for when `entry-link` is ready to sign.
+
+**Build decisions (2026-11-13, made while writing the build guide; Connor confirms or reverses):**
+- **The link is HTTPS long-polling, not a WebSocket.** `entry-link` is C on the controller; with libcurl alone (in the ACAP SDK) a held
+  `POST /link/v1/sync` carries settings, events and commands both ways within about a second, needs no WebSocket client, and passes every proxy.
+- **The link service is part of the Python API** (the same image, its own hostname `link.entry.photonind.com`), not a Go service: a long-poll
+  needs nothing a FastAPI worker cannot do, and one language in the cloud keeps one data layer.
+- **PINs are stored encrypted (Fernet), not hashed**, because they must reach the controllers in clear (§7.5 corrected).
+
 ---
 
 ## Decisions
@@ -35,11 +52,11 @@ Connor can answer are in §13.
 |---|---|---|---|
 | 1 | **Name: PhotonEntry**: directory key `entry`, `entry.photonind.com`. The folder stays `photonaccess` for now. **Decided** | "PhotonAccess" echoed UniFi Access (suite §1) | — |
 | 2 | **Operating area: Pennsylvania, Ohio, West Virginia** for now. **Decided** | Connor's market | 7.7 |
-| 3 | **Doors in R1: Axis network door controllers**: the A1210 (1 door) and the A1610 (2 doors; 4 OSDP readers). Second choice: Suprema CoreStation CS-40. UniFi Access in R2 for UniFi sites. Akuvox controllers are **not** used on doors that need a listed system. Mercury only when a customer requires it | It ranks first for Connor's model (§3.1). Its controllers are autonomous (250k credentials and events stored on the device) and UL 294 listed. The API is public with no NDA. **Software can run on the controller itself** (§3.2). It costs about $440–530 per door and is stocked by ADI and Anixter | 3 |
-| 4 | **The controller is fed by `entry-link`, our ACAP app running on the controller.** It connects out to our cloud, pulls access settings, applies them through the device's own API, pushes events back, and buffers them while offline. **No PhotonEdge is required.** Fallbacks if the app route fails Axis's terms or the bench test, in order: Axis's O3C cloud connection to our own server, a WireGuard tunnel from the site router, then a PhotonEdge | This is Connor's model exactly. Genetec ships the same design today ("Axis Powered by Genetec": an ACAP connects A1210/A1610 controllers directly to Genetec's cloud) | 3.2, 5 |
+| 3 | **Doors in R1: Axis network door controllers**: the A1210 (1 door) and the A1610 (2 doors; 4 OSDP readers). Second choice: Suprema CoreStation CS-40. UniFi Access in R2 for UniFi sites. Akuvox controllers are **not** used on doors that need a listed system. Mercury only when a customer requires it | It ranks first for Connor's model (§3.1). Its controllers are autonomous (250k credentials on the device; its event log keeps the last 30,000 events) and UL 294 listed. The API is public with no NDA. **Software can run on the controller itself** (§3.2). It costs about $440–530 per door and is stocked by ADI and Anixter | 3 |
+| 4 | **The controller is fed by `entry-link`, our ACAP app running on the controller.** It connects out to our cloud, pulls access settings, applies them through the device's own API, pushes events back, and buffers them while offline. **No PhotonEdge is required.** Fallbacks if the app route fails on hardware, in order: a PhotonEdge running the same protocol, or a WireGuard tunnel from the site router. Axis's O3C stays documented only (Connor: avoid it) | This is Connor's model exactly. Genetec ships the same design today ("Axis Powered by Genetec": an ACAP connects A1210/A1610 controllers directly to Genetec's cloud) | 3.2, 5 |
 | 5 | **The controller decides; nothing of ours sits in a card or PIN decision.** `entry-link` and the cloud only deliver settings and carry events and remote commands | Site autonomy at its strongest: the doors work with the app, the internet and the cloud all gone | 5 |
 | 6 | **PhotonEntry is the source of truth.** Settings are compiled into the controller's model (VAPIX access-control services). Edits made elsewhere are reported and replaced | The same rule as Vox decision 5 | 6 |
-| 7 | **Intercoms: Akuvox by default**, with Axis and 2N as options. **Decided.** Akuvox's cloud, SmartPlus, is not used: Akuvox settings come from our cloud through Akuvox's auto-provisioning | No per-door Akuvox fees and no lock-in. Auto-provisioning is outbound, so it works without a box | 3.4 |
+| 7 | **Intercoms: Akuvox by default**, with Axis and 2N as options; **bought from Nelly's Security and SS&Si**. **Decided.** Akuvox's cloud, SmartPlus, is not used: Akuvox settings come from our cloud through Akuvox's auto-provisioning | No per-door Akuvox fees and no lock-in. Auto-provisioning is outbound, so it works without a box | 3.4 |
 | 8 | **The Akuvox intercom can act as the card reader** for an Axis door, by Wiegand output (34-bit). Its own card check and relay are off, so **the Axis controller decides and drives the lock, with one audit trail**. **Not** on doors that need a listed system (special locking): there, a UL-verified reader (Axis A4120-E or HID Signo 20) is fitted, and the intercom only takes calls | Answers Connor's question (§3.4). The Axis listing names its verified readers, and Akuvox is not one | 3.4 |
 | 9 | **Unlock from a call goes through the Axis controller, never through the intercom's relay.** The person answering presses the door's code. The Akuvox "web relay" calls `entry-link` on the controller over the LAN. `entry-link` asks the controller to open the door, and the audit entry names the person from Vox's call record. The PhotonVox app's Unlock button (R2) takes the cloud path | Works with the internet down. An intercom torn off the wall opens nothing. One audit trail | 3.4, 9.2 |
 | 10 | **Cardholders are PhotonEntry's own records**, optionally linked to a PhotonID person. Credentials belong to the cardholder | Issuing 200 badges must not mean 200 invitations (as Vox decision 15) | 8 |
@@ -50,13 +67,13 @@ Connor can answer are in §13.
 | 15 | **Fire alarm release is hardwired, never in software.** PhotonEntry reports it and offers no override | Codes and AHJ practice | 7 |
 | 16 | **A door enters service only after a signed commissioning record**: lock type, egress hardware, fire release tested, REX and door contact checked, the AHJ reference, and **the licensed installer** (WV low-voltage license number; Ohio fire-protection certification for a fire tie-in) | Puts the integrator's responsibility on record (§7.7) | 7.2 |
 | 17 | **Lockdown in R1**: from the app (cloud → `entry-link`), and from a hardwired panic input set up on the controller itself, which works offline. Later from a Vox feature code. It never affects egress or fire release | Schools and offices ask for it first. The seed of suite emergency alerts | 9.6 |
-| 18 | **Audit trail append-only**: 3 years by default, per organization. The controller's own log (up to 250k events) is the second copy and fills any gaps | Investigations and insurers | 7.4 |
+| 18 | **Audit trail append-only**: 3 years by default, per organization. The controller's own event log (the last 30,000 events) is the second copy and fills gaps | Investigations and insurers | 7.4 |
 | 19 | **No biometrics in R1** | BIPA-style laws; none needed for R1 | 7.5 |
 | 20 | **Price per door per month**, wholesale to partners. Cardholders and visitor passes unlimited | Easy to quote; in line with the market | 10.3 |
 | 21 | **Hosting: R1 as its own compose project on the PhotonGuard VPS**, with `link.entry.photonind.com` for controllers. *Its own VPS later costs money* | The cloud makes no door decisions | 11 |
 | 22 | **Photon holds no installer license and does not dispatch.** Partners hold the licenses their state and city require; Photon collects them at partner onboarding. PhotonEntry raises door alarms to people, never to police or a central station on its own | No PA, OH or WV license covers a cloud provider. Monitoring with dispatch could bring in local alarm ordinances | 7.7 |
 | 23 | **Visitor QR codes** carry a time-boxed credential number. The Akuvox reads the code and passes the number by Wiegand like a card, so the controller checks it offline. Visitor PINs are the fallback | Box-free and offline-safe (bench H9) | 10.1 |
-| 24 | **Order:** the Step 0 bench (Axis app, Akuvox reader and call) first; build after D1. **E1 is no longer a prerequisite** | No PhotonEdge dependency | 12 |
+| 24 | **Order:** the build starts now, on a simulator (Connor, 2026-11-13); the bench tests run when hardware is bought; the directory (D1) before production. **E1 is no longer a prerequisite** | No PhotonEdge dependency | 12 |
 
 ---
 
@@ -121,7 +138,7 @@ from PA/OH/WV distribution.
 
 | # | Platform | Autonomous | Cloud-fed without a box | Open API | UL 294 | ~$ per door | PA/OH/WV supply |
 |---|---|---|---|---|---|---|---|
-| **1** | **Axis A1210 / A1610** | Yes: 250k credentials and events on the device | **Yes, by an app on the controller** (Genetec ships this); O3C as a fallback (terms not public) | **Public** (VAPIX, ONVIF A/C) | **Yes** (A1210, A1610: indoor, Class 2 power, UL-verified readers) | $400–530 + reader | ADI, Anixter (Wesco is headquartered in Pittsburgh) |
+| **1** | **Axis A1210 / A1610** | Yes: 250k credentials on the device; event log of 30,000 | **Yes, by an app on the controller** (Genetec ships this); O3C as a fallback (terms not public) | **Public** (VAPIX, ONVIF A/C) | **Yes** (A1210, A1610: indoor, Class 2 power, UL-verified readers) | $400–530 + reader | ADI, Anixter (Wesco is headquartered in Pittsburgh) |
 | 2 | Suprema CoreStation CS-40 (UL) | Yes | **Yes, natively**: the device connects to a gateway we would run in our cloud (G-SDK "device to server") | Public (G-SDK, gRPC); license terms not stated | ETL listed to UL 294 | ~$350 + reader | ADI |
 | 3 | HID Mercury MP / HID Aero | Yes | Yes: the panel connects to its host (proven by Brivo, Genea, Feenics) | **OEM only**, NDA, terms not public | Yes | $425–850 | Through OEMs |
 | 4 | UniFi Access | Yes (hubs; not the Ultra or Door Hub Mini) | **No**: the API is local on the UniFi console; a PhotonEdge or tunnel is needed | Local API, public | Yes (Eurofins MET) | ~$180 + reader, plus a console | Broad |
@@ -140,8 +157,8 @@ behind a PhotonEdge, later and only if asked.
 
 | Option | How | Status |
 |---|---|---|
-| **A. `entry-link`, an ACAP app on the controller (recommended)** | Our app (Native SDK, C; small) runs on the controller. It holds a **WebSocket to `link.entry.photonind.com`**, authenticated by a key it generates and keeps on the device (claimed with a code, as a PhotonEdge is). It calls the controller's own access-control API on loopback, with the service account AXIS OS gives apps (AXIS OS 11.8+). It pulls the compiled settings, applies the differences, reports the version applied, streams events with sequence numbers, buffers them in flash (2 GB) while offline, and carries remote unlock and lockdown | **Proven by Genetec** (same controllers, direct to the cloud, no Cloudlink box). The A1210 datasheet lists ACAP (Native SDK); the A1610 manual has Apps. Open: which **firmware track** allows a third-party app to use the access-control API (Axis tells integrators to use the VAPIX track, 10.12, which predates app service accounts; the Secure Entry track 12.x does run apps); the chip architecture; **app signing** (required from AXIS OS 12; AXIS OS 13 removes unsigned apps; the ACAP Signing Service takes any axis.com account). Bench H1–H3 and a question to Axis |
-| B. O3C | The controller's built-in cloud connection is redirected by Axis's dispatcher to an O3C server we run; the cloud then calls the controller's API through it | On the A1210 (A1610 verify). Partner terms are not public: ask Axis |
+| **A. `entry-link`, an ACAP app on the controller (recommended)** | Our app (Native SDK, C; small) runs on the controller. It holds a **long-polled HTTPS link to `link.entry.photonind.com`**, authenticated by a key it generates and keeps on the device (claimed with a code, as a PhotonEdge is). It calls the controller's own access-control API on loopback, with the service account AXIS OS gives apps (AXIS OS 11.8+). It pulls the compiled settings, applies the differences, reports the version applied, streams events with sequence numbers, buffers them in flash (2 GB) while offline, and carries remote unlock and lockdown | **Proven by Genetec** (same controllers, direct to the cloud, no Cloudlink box). The A1210 datasheet lists ACAP (Native SDK); the A1610 manual has Apps. Open: which **firmware track** allows a third-party app to use the access-control API (Axis tells integrators to use the VAPIX track, 10.12, which predates app service accounts; the Secure Entry track 12.x does run apps); the chip architecture; **app signing** (required from AXIS OS 12; AXIS OS 13 removes unsigned apps; the ACAP Signing Service takes any axis.com account). Bench H1–H3 and a question to Axis |
+| B. O3C (**documented fallback only**; Connor: avoid Axis's cloud) | The controller's built-in cloud connection is redirected by Axis's dispatcher to an O3C server we run; the cloud then calls the controller's API through it | On the A1210 (A1610 verify). Partner terms are not public |
 | C. Site router tunnel | The site's MikroTik joins mgmtnet (WireGuard); the cloud calls the controller's API through it; events also go out over AXIS OS's MQTT client | Works on any Axis, with no Axis permission. But it makes doors' management depend on mgmtnet, which the suite keeps for management only |
 | D. A PhotonEdge | `entry-agent` on a PhotonEdge drives the controllers over the LAN | Revision 1's design. Kept for UniFi and Akuvox controllers, and as a last resort |
 
@@ -236,8 +253,7 @@ controller. OSDP works only on some models and is untested with third-party cont
     - firmware pinned to a version we have tested.
   - **Akuvox's FCC and NDAA standing:** not on the FCC covered list; a Section 889 statement from about 2022; very likely not TAA compliant.
     Government buyers get Axis or 2N intercoms.
-- **Akuvox supply:** sold by Low Voltage Dealer, Ellipse, Nelly's and ENS. **No distributor found in PA, OH or WV**: ask Akuvox for the
-  regional representative (§13).
+- **Akuvox supply:** **Nelly's Security and SS&Si** (Connor's distributors; decided 2026-11-13).
 - **Axis supply:** ADI and Anixter (Wesco). The Tri-Ed branch in Cranberry Township, PA is now Anixter. Branches still to confirm.
 
 ### 3.6 Bench tests (gate before the build)
@@ -245,7 +261,7 @@ controller. OSDP works only on some models and is untested with third-party cont
 | # | Test | Pass |
 |---|---|---|
 | H1 | **`entry-link` on an A1610**: chip architecture; firmware track; install a test app; get the app service account; reach the access-control API on loopback (users, credentials, access profiles, schedules, door commands, events) | All work on one firmware track, written down with its version |
-| H2 | `entry-link` over WebSocket to a staging cloud: apply 1,000 cardholders; change one; revoke one; time to the door | Changes at the door within 5 seconds; a revocation is never lost |
+| H2 | `entry-link` over its HTTPS link to a staging cloud: apply 1,000 cardholders; change one; revoke one; time to the door | Changes at the door within 5 seconds; a revocation is never lost |
 | H3 | Offline: uplink cut for 24 hours; doors keep working; events buffered and backfilled in order; the controller rebooted while offline | No lost events; no change in door behavior |
 | H4 | Controller events: forced, held open, tamper, REX, a lockdown triggered by a local input (no cloud) | All reported; lockdown works offline |
 | H5 | Akuvox (S535) as a reader: 34-bit Wiegand into the A1610; a DESFire card with our key, through the encoder; MIFARE and a 125 kHz card; PIN in both modes; card check off; relay idle | The Axis decides every credential; the intercom never fires its relay |
@@ -290,7 +306,7 @@ FusionPBX staging exists already (Vox's CT 610).
 | Piece | What it does | Stack |
 |---|---|---|
 | **entry-api** | Directory copy and authorization; sites, doors, controllers, cardholders, credentials, groups, schedules, passes; the compiler; door events and the audit; links to Guard, Vox, Console | FastAPI + Postgres 16 + TimescaleDB |
-| **entry-link service** | Holds controllers' WebSockets: settings versions, event intake, commands; refuses unknown or revoked keys | Go (long-running network service, like Vox's gateway) |
+| **link service** | Controllers' long-polled HTTPS link: claim, settings versions, event intake with sequence numbers, commands; refuses unknown or revoked keys | Part of the Python API (build decision, 2026-11-13) |
 | **entry-worker** | Compiling and publishing, drift reports, visitor passes (Postmark), Akuvox provisioning files, the Console feed, retention | Python, same image as the API |
 | **entry-web** | The integrator's and customer's app, including the phone unlock page; desktop and phone equally first-class | React 19 + Vite + `@photon/ui` |
 | **entry-link** (on the controller) | Applies settings, buffers and sends events, carries commands, receives the intercom's web relay | ACAP Native SDK (C), signed |
@@ -305,7 +321,7 @@ FusionPBX staging exists already (Vox's CT 610).
 | Nothing | Normal | At the door in seconds | 1–3 s | Works | Live |
 | **Cloud** | **Normal** | Wait; nothing lost | No | **Works** (LAN path) | Buffered by `entry-link`, sent later with source time |
 | **Uplink** | **Normal** | Wait | No | **Works** if the intercom still reaches Vox; otherwise no call | Buffered |
-| **`entry-link`** (crashed, updating) | **Normal**: the controller decides alone | Wait | No | No: use a credential | Kept in the controller's log (250k); backfilled when it returns |
+| **`entry-link`** (crashed, updating) | **Normal**: the controller decides alone | Wait | No | No: use a credential | Kept in the controller's event log (the last 30,000); backfilled when it returns |
 | **Controller power** | Battery or listed supply backup, then each lock goes to its **wired** state | — | — | — | Gap |
 
 - **Revocation offline:** a credential revoked while a site is cut off stays valid there until it reconnects. The app shows unapplied changes
@@ -405,7 +421,7 @@ privacy controls when they exist (suite §5). Until then, every remote action by
 
 - Cardholder data is the customer's, and minimal.
 - Card numbers are encrypted (Fernet `SECRETS_KEY`).
-- PINs are kept only as a hash in the cloud and in clear only where the controller needs them.
+- PINs are encrypted in the cloud (Fernet), because the controllers need them in clear; they are never shown again after entry.
 - No biometrics in R1.
 
 ### 7.6 Device security
@@ -601,10 +617,10 @@ Console offers **no door actions**: an automation must never open a door.
 ## 11. Hosting, names, repo
 
 - **Cloud:**
-  - one compose project (`entry-api`, `entry-link` service, `entry-worker`, `entry-web`, Postgres + TimescaleDB, one-shot migrate);
+  - one compose project (`entry-api` with the link service, `entry-worker`, `entry-web`, Postgres + TimescaleDB, one-shot migrate);
   - on the PhotonGuard VPS at first, behind its Caddy (decision 21);
   - OPERATIONS.md Part 2 from the first deploy, and its database joins the nightly encrypted backup.
-  - Controllers hold long-lived WebSockets: about 1 KB of state each, so thousands fit on the VPS.
+  - Each controller holds one long-poll open at a time (an idle coroutine), so thousands fit on the VPS.
 - **Names:**
   - `entry.photonind.com`, `api.entry.photonind.com`, `link.entry.photonind.com` (controllers), `prov.entry.photonind.com` (intercom
     provisioning);
@@ -613,8 +629,8 @@ Console offers **no door actions**: an automation must never open a door.
   - The folder stays `photonaccess` (Connor, 2026-11-13).
 - **Repo:**
   - `api/` (FastAPI, Alembic, tests);
-  - `link/` (the Go link service);
   - `acap/` (`entry-link`, C, ACAP Native SDK; built with Axis's SDK container on LXC 800);
+  - `sim/` (the Axis access-control API simulator, from Axis's public documentation);
   - `web/`;
   - `contract/` (site document, compiled settings, link protocol, door events, Guard and Vox payloads, Console feed);
   - `docs/`.
@@ -627,9 +643,9 @@ Console offers **no door actions**: an automation must never open a door.
 
 | Step | What | Needs |
 |---|---|---|
-| **0** | Bench H1–H11 (`docs/SPIKES.md`); questions to Axis (§13) | The bench kit; an axis.com account for app signing; Vox's staging FusionPBX |
-| **1** | Skeleton: directory copy, roles, sites, doors, cardholders, RLS, tenant tests | D1 (or the directory's fake) |
-| **2** | `entry-link` (ACAP) and the link service: claim, settings, events, commands, offline buffer, signed updates | H1–H4 passed |
+| **1** | Scaffold on a simulator: repo, link service, settings model and compiler, `entry-link` skeleton, the Axis simulator, tests end to end | Nothing (started 2026-11-13) |
+| **2** | Database and directory: migration with RLS, directory copy, cardholders and credentials stored, the link on Postgres | D1 (or the directory's fake) |
+| **later** | Bench H1–H11 (`docs/SPIKES.md`) and app signing | The bench kit and an axis.com account (Connor, when ready) |
 | **3** | Integrator app: wizard, templates, import, groups, schedules, holidays, commissioning, events, fleet | Steps 1–2 |
 | **4** | Akuvox: provisioning, reader mode, Vox door station, unlock from a call | Vox R1's engine adapter; H5–H8 |
 | **5** | Guard: events, clips, access incidents, intercom cameras | Guard's ingest and incidents deployed |
@@ -639,14 +655,11 @@ Console offers **no door actions**: an automation must never open a door.
 
 ## 13. Questions only Connor can answer
 
-1. **The bench kit** (§3.6): about **$2.9k** (the A1610, one reader, midspan, Akuvox S535, bench door, cards), or **$3.6k** with an A1210 and a
-   second reader. May we buy it, and from whom (an ADI or Anixter account)?
-2. **Talking to Axis:** may we contact Axis (the Technology Integration Partner Program) with three questions?
-   - Which firmware track lets a third-party app use the access-control API?
-   - Does an app affect the UL 294 listing?
-   - Can we get O3C server access?
-   And may we create an axis.com account for app signing, in Photon's name, with you as the holder?
-3. **Akuvox supply:** may we ask Akuvox for its representative and distributor covering PA, OH and WV (none found)?
+Answered 2026-11-13: the bench kit (not now), Axis contact (not now; the signing account later), Akuvox supply (Nelly's Security and SS&Si).
+
+1. **When to buy the bench kit** (§3.6, about $2.9k): it gates the bench tests, and production on real doors.
+2. **The axis.com account for app signing**, when `entry-link` is ready to sign (Photon's name, Connor the holder).
+3. **The two build decisions** above (HTTPS long-poll; the link service in Python).
 4. **First customers:** offices, schools, multifamily or gates? This decides the first templates and whether lockdown or the resident
    intercom comes first. How many doors in year one?
 5. **Partners' licenses and the agreement:**
