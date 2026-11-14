@@ -12,7 +12,9 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
-from app import guard, sync, vox
+from sqlalchemy import text
+
+from app import guard, obs, sync, vox
 from app.config import settings
 from app.db import SystemSession
 from app.deps import get_directory
@@ -72,12 +74,20 @@ def check_config() -> None:
         raise RuntimeError(f"Unsafe production configuration: {problem}")
 
 
+def heartbeat() -> None:
+    """The row /readyz reads (the API cannot see this container's file)."""
+    with SystemSession() as db:
+        db.execute(text("INSERT INTO worker_heartbeat (id, at) VALUES (1, now()) ON CONFLICT (id) DO UPDATE SET at = now()"))
+        db.commit()
+
+
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    obs.configure("worker")
     check_config()
     state: dict = {}
     while True:
         tick(state)
+        run_job("heartbeat", lambda db: heartbeat())
         try:
             Path(HEARTBEAT_FILE).touch()
         except OSError:

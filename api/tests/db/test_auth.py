@@ -144,4 +144,4 @@ def test_a_removed_organization_is_not_listed(client, world, fake):
 
 def test_health_and_readiness(client):
     assert client.get("/healthz").json() == {"ok": True}
-    assert client.get("/readyz").json() == {"ok": True}
+    assert client.get("/readyz").json()["version"] == "dev"

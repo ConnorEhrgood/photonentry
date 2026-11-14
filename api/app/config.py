@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     web_url: str = "https://entry.photonind.com"
 
     # The provisioning server's public address (Akuvox intercoms fetch their settings from <this>/provision/v1/<token>/; app/routes/provision.py).
-    provision_url: str = "https://link.entry.photonind.com"
+    provision_url: str = "https://prov.entry.photonind.com"
 
     # Email (Postmark, as PhotonVox): visitors' passes. Empty token: nothing is sent.
     postmark_token: str = ""
@@ -62,6 +62,8 @@ class Settings(BaseSettings):
     link_wait_s: float = 25.0
 
     environment: str = "development"
+    # The commit this image was built from (the image's BUILD_SHA build argument; OPERATIONS.md §2.1): /readyz reports it.
+    build_sha: str = ""
 
     @property
     def notice_secrets(self) -> List[str]:

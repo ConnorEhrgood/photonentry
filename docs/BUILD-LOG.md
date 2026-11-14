@@ -419,3 +419,28 @@ go-ahead; whether Akuvox reads a QR as the card number is a bench item anyway (A
 **Verified:** 551 Python tests (who issues, which groups, the window rules, the drafts not published, revoking, the visitor's page, ended passes
 dropped, no free number, mail failing, row-level security) and 185 web tests; 30 CRITICAL modules at 100%. Screenshots at the three sizes,
 looked at (one fix: a new pass now starts at the current minute, not the next quarter hour).
+
+## 2026-11-14: Step 8 preparation: deployable to the suite's operations standard (not deployed)
+
+**Built** (photon-suite OPERATIONS.md Part 2):
+- **Images:** `api/Dockerfile` (the API, the migration job and the worker; non-root; the base PhotonGuard pins on the same host, by digest;
+  `BUILD_SHA` as label and setting) and `deploy/web/Dockerfile` (built inside the image; the pinned Caddy; `/config.js` from the environment).
+- **`docker-compose.yml`** (project `photonentry`): db, one-shot migrate, api, worker, web; memory ceilings, health checks, the shared logging
+  limits, read-only filesystems with every capability dropped, no published ports; the owner's password only in `migrate`.
+- **`deploy/caddy/entry.caddy`** for the host's Caddy: the four names, each serving only its part (`link.` only `/link/v1`, with a read timeout
+  for the long-poll; `prov.` only `/provision/v1`). The provisioning address now defaults to `prov.entry.photonind.com` (BUILD-GUIDE Step 8).
+- **`scripts/deploy.sh <env> [<ref>]`:** a clean tree, a commit on `origin/main` (prod), `git archive` to `releases/<sha>`, build there, migrate,
+  start, wait for health, the public `/readyz` must report the commit, tag `deploy/<env>/<date>-<n>`, three releases kept.
+- **`/readyz`:** the database, migrations at this release's head, the worker heard from within 2 minutes (a heartbeat row, migration 0010),
+  `version` and `started_at`; 503 with the reasons. **JSON logs** (`app/obs.py`) with a request id on every line and every answer.
+- **`docs/OPERATIONS.md`** in the standard's eight parts.
+
+**Checked on LXC 800** (not a deploy): compose valid, both images build, the stack runs healthy under the hardening, migrations at head,
+`/readyz` ready with its version, `/config.js`, JSON logs; both Caddyfiles validate (Caddy itself); everything removed afterwards.
+
+**A mistake, recorded:** the check stack's `.env` came from the production template, so its worker asked the **production** directory a few
+times with made-up credentials (refused, 401; nothing changed). The stack was taken down at once; OPERATIONS.md §3 now says a test stack points at
+the development PhotonID.
+
+**Not done:** a hash-locked requirements file (OPERATIONS.md §2.9: needs pip-tools), the move to PhotonGuard's signed-image registry, CI, the
+host's watch and backup manifest entries (at the first deploy).

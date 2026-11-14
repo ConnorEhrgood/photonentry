@@ -1,0 +1,55 @@
+# PhotonEntry behind the host's Caddy (the PhotonGuard VPS's, BUILD-GUIDE Step 8): copy into its sites folder. Upstreams by container name on the
+# external "entry-edge" network (docker network create entry-edge; the host's Caddy joins it too). Each name serves only its part of the API.
+#   ENTRY_APP_ADDRESS   entry.photonind.com        the web app
+#   ENTRY_API_ADDRESS   api.entry.photonind.com    the API (people, PhotonConsole's feed, the home dashboard's summary)
+#   ENTRY_LINK_ADDRESS  link.entry.photonind.com   controllers: /link/v1 only, long-polled (held up to a minute)
+#   ENTRY_PROV_ADDRESS  prov.entry.photonind.com   Akuvox intercoms fetch their settings: /provision/v1 only
+
+{$ENTRY_APP_ADDRESS} {
+	import secure
+	reverse_proxy photonentry-web-1:8080 {
+		health_uri /healthz
+		health_interval 15s
+	}
+}
+
+{$ENTRY_API_ADDRESS} {
+	import secure
+	encode zstd gzip
+	request_body {
+		max_size 2MB
+	}
+	@link path /link/*
+	respond @link 404
+	@prov path /provision/*
+	respond @prov 404
+	reverse_proxy photonentry-api-1:8000 {
+		health_uri /healthz
+		health_interval 15s
+	}
+}
+
+{$ENTRY_LINK_ADDRESS} {
+	import secure
+	request_body {
+		max_size 2MB
+	}
+	@notlink not path /link/*
+	respond @notlink 404
+	# A sync with nothing to say is held open (LINK_WAIT_S, 25 s; entry-link waits up to 60): no early timeout.
+	reverse_proxy photonentry-api-1:8000 {
+		transport http {
+			read_timeout 90s
+		}
+	}
+}
+
+{$ENTRY_PROV_ADDRESS} {
+	import secure
+	request_body {
+		max_size 1KB
+	}
+	@notprov not path /provision/*
+	respond @notprov 404
+	reverse_proxy photonentry-api-1:8000
+}

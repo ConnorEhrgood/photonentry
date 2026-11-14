@@ -17,11 +17,46 @@ from app.link.service import Link
 from app.link.store import MemoryStore
 
 
-def test_healthz_readyz_and_security_headers(client):
+def test_healthz_readyz_and_security_headers(client, db):
     r = client.get("/healthz")
     assert r.json() == {"ok": True}
+    # No worker yet: not ready, and it says why.
     r = client.get("/readyz")
-    assert r.json() == {"ok": True} and r.headers["x-content-type-options"] == "nosniff" and r.headers["referrer-policy"] == "no-referrer"
+    assert r.status_code == 503 and r.json()["problems"] == ["the worker has not been heard from in two minutes"]
+    assert r.headers["x-content-type-options"] == "nosniff" and r.headers["referrer-policy"] == "no-referrer"
+    from app import worker
+    worker.heartbeat()
+    r = client.get("/readyz")
+    assert r.status_code == 200 and r.json()["ok"] is True and r.json()["version"] == "dev" and r.json()["started_at"]
+    # Migrations behind this release's head.
+    from app import main
+    real = main.MIGRATIONS_HEAD
+    main.MIGRATIONS_HEAD = "9999"
+    try:
+        assert client.get("/readyz").json()["problems"] == ["migrations are not at this release's head"]
+    finally:
+        main.MIGRATIONS_HEAD = real
+
+
+def test_every_answer_carries_a_request_id(client):
+    r = client.get("/healthz", headers={"X-Request-ID": "abc12345-from-console"})
+    assert r.headers["x-request-id"] == "abc12345-from-console"
+    made = client.get("/healthz", headers={"X-Request-ID": "bad id with spaces"}).headers["x-request-id"]
+    assert len(made) == 32 and made != "bad id with spaces"
+
+
+def test_a_database_that_does_not_answer_is_not_ready(client, monkeypatch):
+    from app import db as dbmod
+
+    class Broken:
+        def connect(self):
+            raise OSError("down")
+    import app.main as main
+    monkeypatch.setattr(dbmod, "system_engine", Broken())
+    app = main.create_app(client.app.state.link)
+    from fastapi.testclient import TestClient
+    r = TestClient(app).get("/readyz")
+    assert r.status_code == 503 and r.json()["problems"] == ["the database does not answer"]
 
 
 def test_a_value_the_database_refuses_is_a_422_not_a_500(client):

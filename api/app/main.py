@@ -2,6 +2,8 @@
 (`/link/v1/...`, served on link.entry.photonind.com; signed by each controller's own key)."""
 from __future__ import annotations
 
+import os
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import FastAPI, Request
@@ -12,8 +14,19 @@ from sqlalchemy.exc import DataError
 
 from app.config import settings
 from app.link.service import Link, router as link_router
+from app.obs import RequestIds
 
 CORS_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+STARTED_AT = datetime.now(timezone.utc).isoformat()
+
+
+def _migrations_head() -> str:
+    """The newest migration this release carries (api/alembic/versions)."""
+    from alembic.script import ScriptDirectory
+    return ScriptDirectory(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "alembic")).get_current_head()
+
+
+MIGRATIONS_HEAD = _migrations_head()
 
 
 class SummaryCors:
@@ -47,6 +60,7 @@ def create_app(link: Link, routes: bool = True) -> FastAPI:
     prod = settings.environment == "production"
     app = FastAPI(title="PhotonEntry API", docs_url=None if prod else "/docs", redoc_url=None, openapi_url=None if prod else "/openapi.json")
     app.state.link = link
+    app.add_middleware(RequestIds)
     app.include_router(link_router(link))
 
     @app.get("/healthz")
@@ -86,9 +100,21 @@ def create_app(link: Link, routes: bool = True) -> FastAPI:
 
     @app.get("/readyz")
     def readyz():
-        with system_engine.connect() as c:
-            c.execute(text("SELECT 1"))
-        return {"ok": True}
+        """Readiness (OPERATIONS.md §2.5), for the proxy, the watchers and PhotonConsole: the database answers, its migrations are at this
+        release's head, and the worker has been heard from in the last two minutes. 503 with what is wrong, otherwise 200."""
+        problems = []
+        try:
+            with system_engine.connect() as c:
+                at_head = c.execute(text("SELECT version_num FROM alembic_version")).scalar() == MIGRATIONS_HEAD
+                beat = c.execute(text("SELECT now() - at < interval '2 minutes' FROM worker_heartbeat")).scalar()
+            if not at_head:
+                problems.append("migrations are not at this release's head")
+            if not beat:
+                problems.append("the worker has not been heard from in two minutes")
+        except Exception:  # noqa: BLE001 - any failure to read is "not ready"
+            problems.append("the database does not answer")
+        body = {"ok": not problems, "version": settings.build_sha or "dev", "started_at": STARTED_AT, "problems": problems}
+        return JSONResponse(body, status_code=200 if not problems else 503)
 
     return app
 
@@ -118,6 +144,8 @@ def __getattr__(name: str):
     global _app
     if name == "app":
         if _app is None:
+            from app import obs
+            obs.configure("api")
             _app = create_app(production_link())
         return _app
     raise AttributeError(name)
