@@ -20,7 +20,7 @@ def g(role, sites=None, **kw):
 
 # What ARCHITECTURE §8 says each role can do, written out independently of app/roles.py so a slip there is caught.
 EXPECTED = {"viewer": {"entry.view", "entry.events.view"}}
-EXPECTED["operator"] = EXPECTED["viewer"] | {"entry.cardholders.view", "entry.door.unlock", "entry.lockdown"}
+EXPECTED["operator"] = EXPECTED["viewer"] | {"entry.cardholders.view", "entry.door.unlock", "entry.lockdown", "entry.visitors.manage"}
 EXPECTED["admin"] = EXPECTED["operator"] | {"entry.cardholders.manage", "entry.credential.issue", "entry.config.manage", "entry.controller.manage",
                                             "entry.members.view"}
 EXPECTED["owner"] = EXPECTED["admin"] | {"entry.emergency.open", "entry.audit.view"}

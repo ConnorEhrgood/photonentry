@@ -7,6 +7,7 @@ import { isIntegrator, Layout } from './components/Layout'
 import { AccessPage } from './pages/Access'
 import { AuditPage } from './pages/Audit'
 import { LicensesPage } from './pages/Commissioning'
+import { PassPageRoute, VisitorsPage } from './pages/Visitors'
 import { CustomersPage } from './pages/Customers'
 import { DoorsPage, OverviewPage } from './pages/Doors'
 import { EventsPage } from './pages/Events'
@@ -94,6 +95,7 @@ function orgPages() {
       <Route element={<Needs cap="entry.config.manage" />}><Route path="setup" element={<SetupPage />} /></Route>
       <Route element={<Needs cap="entry.cardholders.view" />}><Route path="people" element={<PeoplePage />} /></Route>
       <Route element={<Needs cap="entry.events.view" />}><Route path="events" element={<EventsPage />} /></Route>
+      <Route element={<Needs cap="entry.visitors.manage" />}><Route path="visitors" element={<VisitorsPage />} /></Route>
       <Route path="settings" element={<SettingsHub />}>
         <Route index element={<SettingsIndex />} />
         <Route element={<Needs cap="entry.members.view" />}><Route path="team" element={<TeamPage />} /></Route>
@@ -116,6 +118,8 @@ export function App() {
       <Route path="/login" element={<DevTokenPage />} />
       <Route path="/auth/callback" element={<Callback />} />
       <Route path="/auth/signed-out" element={<SignedOut />} />
+      {/* A visitor's own pass: no sign-in; the link's token is the secret. */}
+      <Route path="/pass/:token" element={<PassPageRoute />} />
       <Route element={<Protected />}>
         <Route element={<Layout />}>
           <Route index element={<Home />} />

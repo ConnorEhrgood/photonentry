@@ -95,9 +95,11 @@ describe('editing access in the app', () => {
     await user.click(within(within(dialog).getByRole('group', { name: 'Doors of rule 2' })).getByLabelText('Front door'))
     await user.selectOptions(within(dialog).getAllByLabelText('When')[1], 'sc1')
     await user.click(within(dialog).getAllByRole('button', { name: 'Remove this rule' })[0])
+    await user.click(within(dialog).getByLabelText(/Visitors’ passes may use this group/))
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(state.groups).toHaveLength(2))
-    expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/groups'))?.body).toEqual({ name: 'Night shift', rules: [{ doors: ['d1'], schedule_id: 'sc1' }] })
+    expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/groups'))?.body).toEqual({ name: 'Night shift', rules: [{ doors: ['d1'], schedule_id: 'sc1' }],
+      for_visitors: true })
     const card = (await screen.findByRole('heading', { name: 'Staff' })).closest('.ph-card') as HTMLElement
     await user.click(within(card).getByRole('button', { name: 'Change' }))
     dialog = screen.getByRole('dialog', { name: 'Change Staff' })

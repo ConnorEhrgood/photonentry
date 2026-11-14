@@ -58,8 +58,8 @@ def create_app(link: Link, routes: bool = True) -> FastAPI:
         return app
 
     from app.db import engine, system_engine
-    from app.routes import actions, cardholders, commissioning, config, controllers, directory_notify, integrations, intercoms, lockdown, me, provision, summary, tenants
-    for r in (me, tenants, directory_notify, controllers, config, cardholders, actions, lockdown, commissioning, integrations, intercoms, provision,
+    from app.routes import actions, cardholders, commissioning, config, controllers, directory_notify, integrations, intercoms, lockdown, me, passes, provision, summary, tenants
+    for r in (me, tenants, directory_notify, controllers, config, cardholders, actions, lockdown, commissioning, passes, integrations, intercoms, provision,
               summary):
         app.include_router(r.router)
     app.include_router(tenants.catalog_router)

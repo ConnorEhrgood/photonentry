@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     # The provisioning server's public address (Akuvox intercoms fetch their settings from <this>/provision/v1/<token>/; app/routes/provision.py).
     provision_url: str = "https://link.entry.photonind.com"
 
+    # Email (Postmark, as PhotonVox): visitors' passes. Empty token: nothing is sent.
+    postmark_token: str = ""
+    mail_from: str = "PhotonEntry <entry@photonind.com>"
+
     # The link service (controllers): how long a sync with nothing to say is held open.
     link_wait_s: float = 25.0
 

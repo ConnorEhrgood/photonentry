@@ -419,7 +419,7 @@ service" is shown and audited but does not yet stop anything (an uncommissioned 
 
 ### 7.3 Who may act remotely
 
-`entry.door.unlock`, `entry.lockdown`, `entry.credential.issue` and `entry.emergency.open` are sensitive capabilities, gated by the partner
+`entry.door.unlock`, `entry.lockdown`, `entry.credential.issue`, `entry.visitors.manage` and `entry.emergency.open` are sensitive capabilities, gated by the partner
 privacy controls when they exist (suite §5). Until then, every remote action by partner or Photon staff is audited and shown as "Partner support".
 
 ### 7.4 The audit trail (decision 18)
@@ -601,6 +601,11 @@ Console offers **no door actions**: an automation must never open a door.
   - The path is cloud → `entry-link`, 1–3 s. The phone and the site must both be online.
 - **The PhotonVox app (R2):** door calls with video and Unlock, and the same door list.
 - **Guest:** the pass in an email or text, shown to the intercom.
+  - **Built (2026-11-14):** a pass (front desk, `entry.visitors.manage`) in one access group an admin opened to visitors, for up to 31 days,
+    with a 6-digit PIN and a 32-bit card number; the visitor's own page at a link (no sign-in) shows where, when and the PIN; emailed through
+    Postmark when configured. Published at once from the last published site document, never with an admin's drafts.
+  - **Not yet:** the QR code. It needs a QR library (`segno`, a dependency to approve) and the bench (does Akuvox output a QR's content as
+    the card number, or only after matching a user it stores?).
 - **Tap or Wallet credentials (R3):** need readers that accept third-party mobile credentials. Candidates: HID Signo with HID's mobile
   platform (paid per credential), or Apple's and Google's employee-badge programs. A research item.
 

@@ -397,3 +397,25 @@ banner; screenshots at the three sizes, looked at (two fixes: "Open now" on lock
 and 180 web tests; 27 CRITICAL modules at 100%. Screenshots at the three sizes, looked at (the record's wording fixed).
 
 **Open for Connor:** "in service" does not yet stop anything; whether an uncommissioned door should be held back, and how.
+
+## 2026-11-14: Step 6, visitors' passes (part 3)
+
+**Built** (migration 0008; `app/passes.py`, `app/routes/passes.py`, `app/publishing.py`, all CRITICAL):
+- **A pass:** issued by operators and up (`entry.visitors.manage`, new, sensitive; ARCHITECTURE §8 already gave operators visitor passes) at
+  their sites, in one access group an admin opened to visitors (a new "Visitors' passes may use this group" on the group editor), for at most 31
+  days. It is a cardholder of its own with a 6-digit PIN and a 32-bit card number, both unique in the organization and valid only for the
+  window (the controller enforces it). Revoking suspends it at once.
+- **The system writes it:** operators cannot write cardholders, credentials or settings (row-level security), so the API checks the person in
+  their own session first and `app/passes.py` writes the pass as the system, recorded in the person's name: the only escalation, in one module.
+- **Published without anyone's drafts:** every publish now keeps the document it sent (`site_publication`); a pass is published from that
+  document with today's passes in it. A site never published refuses passes. Passes over for more than a day are no longer sent, by either path.
+- **The visitor's page** (`/pass/<token>`, no sign-in, limited per address): where, when, who invited them, and the PIN while it is good.
+  Emailed through Postmark when `POSTMARK_TOKEN` is set (PhotonVox's pattern); otherwise the front desk shares the link.
+- **Web:** a Visitors page (make a pass, the PIN and link shown once, revoke), the visitor's page.
+
+**Not built:** the QR code. Adding the QR library (`segno`) was refused by the session's permission check, so it waits for Connor's
+go-ahead; whether Akuvox reads a QR as the card number is a bench item anyway (ARCHITECTURE §3.4).
+
+**Verified:** 551 Python tests (who issues, which groups, the window rules, the drafts not published, revoking, the visitor's page, ended passes
+dropped, no free number, mail failing, row-level security) and 185 web tests; 30 CRITICAL modules at 100%. Screenshots at the three sizes,
+looked at (one fix: a new pass now starts at the current minute, not the next quarter hour).

@@ -17,8 +17,9 @@ def test_the_catalog_is_what_the_directory_is_sent():
     assert [r["key"] for r in cat] == ["viewer", "operator", "admin", "owner"]
     owner = cat[-1]
     assert owner["site_limitable"] is False and set(owner["capabilities"]) == set(CAPABILITIES)
-    assert owner["sensitive_capabilities"] == ["entry.credential.issue", "entry.door.unlock", "entry.emergency.open", "entry.lockdown"]
-    assert cat[1]["sensitive_capabilities"] == ["entry.door.unlock", "entry.lockdown"]
+    assert owner["sensitive_capabilities"] == ["entry.credential.issue", "entry.door.unlock", "entry.emergency.open", "entry.lockdown",
+                                               "entry.visitors.manage"]
+    assert cat[1]["sensitive_capabilities"] == ["entry.door.unlock", "entry.lockdown", "entry.visitors.manage"]
 
 
 def test_only_the_owner_can_open_every_door_at_once_or_read_the_audit_trail():

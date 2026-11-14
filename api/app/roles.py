@@ -15,6 +15,7 @@ CAPABILITIES: Dict[str, bool] = {
     "entry.cardholders.view": False,    # cardholders' names and groups (not their credentials)
     "entry.door.unlock": True,          # open a door remotely, or lock or unlock it
     "entry.lockdown": True,             # start and end a lockdown
+    "entry.visitors.manage": True,      # issue and revoke visitors' passes (only for access groups an admin opened to visitors)
     "entry.cardholders.manage": False,  # add, change and remove cardholders and their groups
     "entry.credential.issue": True,     # issue, change and revoke cards and PINs
     "entry.config.manage": False,       # doors, schedules, holidays, access groups; publish to controllers
@@ -25,7 +26,7 @@ CAPABILITIES: Dict[str, bool] = {
 }
 
 _VIEWER = ["entry.view", "entry.events.view"]
-_OPERATOR = _VIEWER + ["entry.cardholders.view", "entry.door.unlock", "entry.lockdown"]
+_OPERATOR = _VIEWER + ["entry.cardholders.view", "entry.door.unlock", "entry.lockdown", "entry.visitors.manage"]
 _ADMIN = _OPERATOR + ["entry.cardholders.manage", "entry.credential.issue", "entry.config.manage", "entry.controller.manage", "entry.members.view"]
 _OWNER = _ADMIN + ["entry.emergency.open", "entry.audit.view"]
 

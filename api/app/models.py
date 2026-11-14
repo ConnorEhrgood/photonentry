@@ -231,6 +231,7 @@ class AccessGroup(Base):
     site_id: Mapped[uuid.UUID] = mapped_column(UUIDT, index=True)
     name: Mapped[str] = mapped_column(String(64))
     rules: Mapped[List[Dict[str, Any]]] = mapped_column(JSONB)          # [{"doors": [door id], "schedule_id": id or null}]
+    for_visitors: Mapped[bool] = mapped_column(Boolean, default=False)  # visitors' passes may use it (an admin's choice)
 
 
 class Cardholder(Base):
@@ -472,3 +473,41 @@ class Commissioning(Base):
     voided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     voided_by_label: Mapped[str] = mapped_column(String(200), default="")
     void_reason: Mapped[str] = mapped_column(String(200), default="")
+
+
+
+# ---- 7. visitors' passes (Step 6) ----
+
+
+class SitePublication(Base):
+    """The site document as it was last published (app/sitedoc.py): visitors' passes are published from it, so a pass never publishes an
+    admin's unpublished changes."""
+    __tablename__ = "site_publication"
+    site_id: Mapped[uuid.UUID] = mapped_column(UUIDT, primary_key=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUIDT, index=True)
+    document: Mapped[Dict[str, Any]] = mapped_column(JSONB)
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    published_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUIDT)
+
+
+class VisitorPass(Base):
+    """A visitor's pass (ARCHITECTURE §10.2): a cardholder of its own, in one access group an admin opened to visitors, valid for a window,
+    with a PIN and a card number (for a QR code). The visitor sees it at a link holding `token` (only its hash is looked up)."""
+    __tablename__ = "visitor_pass"
+    id: Mapped[uuid.UUID] = mapped_column(UUIDT, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUIDT, index=True)
+    site_id: Mapped[uuid.UUID] = mapped_column(UUIDT, index=True)
+    cardholder_id: Mapped[uuid.UUID] = mapped_column(UUIDT, unique=True)
+    group_id: Mapped[uuid.UUID] = mapped_column(UUIDT)
+    visitor_name: Mapped[str] = mapped_column(String(128))
+    visitor_email: Mapped[str] = mapped_column(String(320), default="")
+    host_person_id: Mapped[uuid.UUID] = mapped_column(UUIDT)
+    host_label: Mapped[str] = mapped_column(String(200))
+    valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    valid_to: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    token_sealed: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    emailed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    revoked_by_label: Mapped[str] = mapped_column(String(200), default="")

@@ -15,15 +15,12 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.compiler.axis import CompileError, compile_controller
 from app.db import get_db
 from app.deps import Ctx, tenant_ctx
 from app.document import Holiday, Rule, Window
-from app.link.pgstore import notify
-from app.link.protocol import Inventory
-from app.models import AccessGroup, CardholderGroup, Controller, Door, HolidayCalendar, Intercom, Schedule, SettingsVersion, Site, utcnow
+from app.models import AccessGroup, CardholderGroup, Controller, Door, HolidayCalendar, Intercom, Schedule, Site, SitePublication, utcnow
 from app.routes.common import log, not_found, problem, site_of
-from app import sitedoc, templates
+from app import publishing, sitedoc, templates
 
 router = APIRouter(prefix="/tenants/{tenant_id}/sites/{site_id}")
 VIEW, MANAGE = "entry.view", "entry.config.manage"
@@ -221,10 +218,11 @@ def put_holidays(site_id: uuid.UUID, body: HolidaysIn, ctx: Ctx = Depends(tenant
 class GroupIn(BaseModel):
     name: str = Field(min_length=1, max_length=64)
     rules: List[Rule] = Field(min_length=1)
+    for_visitors: bool = False          # operators may give it to visitors' passes (app/passes.py)
 
 
 def group_view(g: AccessGroup) -> Dict[str, Any]:
-    return {"id": str(g.id), "name": g.name, "rules": g.rules}
+    return {"id": str(g.id), "name": g.name, "rules": g.rules, "for_visitors": g.for_visitors}
 
 
 def _check_rules(db: Session, site: Site, rules: List[Rule]) -> List[Dict[str, Any]]:
@@ -247,7 +245,8 @@ def list_groups(site_id: uuid.UUID, ctx: Ctx = Depends(tenant_ctx), db: Session 
 @router.post("/groups", status_code=201)
 def add_group(site_id: uuid.UUID, body: GroupIn, ctx: Ctx = Depends(tenant_ctx), db: Session = Depends(get_db)) -> Dict[str, Any]:
     site = site_of(db, ctx, site_id, MANAGE)
-    g = AccessGroup(id=uuid.uuid4(), tenant_id=ctx.tenant_id, site_id=site.id, name=body.name, rules=_check_rules(db, site, body.rules))
+    g = AccessGroup(id=uuid.uuid4(), tenant_id=ctx.tenant_id, site_id=site.id, name=body.name, rules=_check_rules(db, site, body.rules),
+                    for_visitors=body.for_visitors)
     db.add(g)
     log(db, ctx, "group.add", site_id=site.id, target_type="group", target_id=g.id, name=g.name)
     db.commit()
@@ -260,7 +259,7 @@ def put_group(site_id: uuid.UUID, group_id: uuid.UUID, body: GroupIn, ctx: Ctx =
     g = db.get(AccessGroup, group_id)
     if g is None or g.site_id != site.id:
         raise not_found()
-    g.name, g.rules = body.name, _check_rules(db, site, body.rules)
+    g.name, g.rules, g.for_visitors = body.name, _check_rules(db, site, body.rules), body.for_visitors
     log(db, ctx, "group.change", site_id=site.id, target_type="group", target_id=g.id, name=g.name)
     db.commit()
     return group_view(g)
@@ -291,31 +290,17 @@ def publish(site_id: uuid.UUID, ctx: Ctx = Depends(tenant_ctx), db: Session = De
         doc = sitedoc.build(db, site)
     except ValidationError as e:
         raise problem({"code": "invalid", "problems": [f"{'.'.join(map(str, x['loc']))}: {x['msg']}" for x in e.errors()]})
-    controllers = db.execute(select(Controller).where(Controller.site_id == site.id, Controller.state != "pending")
-                             .order_by(Controller.name)).scalars().all()
-    compiled, problems = [], []
-    for c in controllers:
-        if not any(d.controller_id == str(c.id) for d in doc.doors):
-            continue                                 # a controller with no doors mapped yet gets nothing
-        try:
-            inv = Inventory.model_validate(c.inventory) if c.inventory is not None else None
-            compiled.append((c, compile_controller(doc, str(c.id), inv)))
-        except CompileError as e:
-            problems += e.problems
-    if problems:
-        raise problem({"code": "invalid", "problems": sorted(set(problems))})
-    out = []
-    for c, settings in compiled:
-        latest = db.execute(select(SettingsVersion).where(SettingsVersion.controller_id == c.id)
-                            .order_by(SettingsVersion.version.desc()).limit(1)).scalar_one_or_none()
-        if latest is not None and latest.document == settings:
-            out.append({"controller_id": str(c.id), "version": latest.version, "changed": False})
-            continue
-        version = (latest.version if latest else 0) + 1
-        db.add(SettingsVersion(controller_id=c.id, version=version, tenant_id=ctx.tenant_id, site_id=site.id, document=settings,
-                               created_by=ctx.who.id))
-        notify(db, c.id)
-        out.append({"controller_id": str(c.id), "version": version, "changed": True})
+    try:
+        out = publishing.store(db, site, doc, ctx.who.id)
+    except publishing.PublishError as e:
+        raise problem({"code": "invalid", "problems": e.problems})
+    # What was published, for visitors' passes: they are published from it, never from an admin's unpublished changes (app/passes.py).
+    snap = db.get(SitePublication, site.id)
+    if snap is None:
+        db.add(SitePublication(site_id=site.id, tenant_id=site.tenant_id, document=doc.model_dump(mode="json"), published_by=ctx.who.id,
+                               published_at=utcnow()))
+    else:
+        snap.document, snap.published_by, snap.published_at = doc.model_dump(mode="json"), ctx.who.id, utcnow()
     try:
         db.flush()
     except IntegrityError:

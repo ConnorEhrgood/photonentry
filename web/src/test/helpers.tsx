@@ -36,7 +36,7 @@ export class FakeSource implements TokenSource {
 }
 
 const VIEWER_CAPS = ['entry.view', 'entry.events.view']
-const OPERATOR_CAPS = [...VIEWER_CAPS, 'entry.cardholders.view', 'entry.door.unlock', 'entry.lockdown']
+const OPERATOR_CAPS = [...VIEWER_CAPS, 'entry.cardholders.view', 'entry.door.unlock', 'entry.lockdown', 'entry.visitors.manage']
 const ADMIN_CAPS = [...OPERATOR_CAPS, 'entry.cardholders.manage', 'entry.credential.issue', 'entry.config.manage', 'entry.controller.manage', 'entry.members.view']
 const ALL = [...ADMIN_CAPS, 'entry.emergency.open', 'entry.audit.view']
 

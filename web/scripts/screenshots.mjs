@@ -21,7 +21,7 @@ const executablePath = join(cache, shellDir, 'chrome-headless-shell-linux64/chro
 if (!existsSync(executablePath)) throw new Error(`no Chromium at ${executablePath}`)
 
 const VIEWER = ['entry.view', 'entry.events.view']
-const OPERATOR = [...VIEWER, 'entry.cardholders.view', 'entry.door.unlock', 'entry.lockdown']
+const OPERATOR = [...VIEWER, 'entry.cardholders.view', 'entry.door.unlock', 'entry.lockdown', 'entry.visitors.manage']
 const ADMIN = [...OPERATOR, 'entry.cardholders.manage', 'entry.credential.issue', 'entry.config.manage', 'entry.controller.manage', 'entry.members.view']
 const OWNER = [...ADMIN, 'entry.emergency.open', 'entry.audit.view']
 const tenant = (o = {}) => ({ id: 't1', name: 'Cedar Works', slug: 'cedar-works', former_slugs: [], status: 'active', partner_id: null, role: 'owner', scope: { all: true }, source: 'direct', expires_at: null, capabilities: OWNER, ...o })
@@ -101,7 +101,18 @@ const LIC = { kinds: { PA: { pa_pittsburgh_electrical: 'Pittsburgh electrical tr
       expires_on: '2027-03-31', expired: false, expiring: false, removed: false, text: '' },
     { id: 'l2', owner: 'partner', state: 'WV', kind: 'wv_sp_lv', kind_label: 'Specialty Low-Voltage Electrician (SP-LV), State Fire Marshal', holder: 'Ben Ortiz',
       number: 'SPLV-20877', expires_on: '2026-12-01', expired: false, expiring: true, removed: false, text: '' }] }
+const hoursFrom = (h) => new Date(Date.now() + h * 3_600_000).toISOString()
+const PASSES = [
+  { id: 'p1', visitor_name: 'Vera Visitor', visitor_email: 'vera@example.com', group_id: 'g9', group: 'Visitors (lobby)', valid_from: hoursFrom(-1), valid_to: hoursFrom(7),
+    state: 'active', host: 'Fay Front', created_at: now, emailed: true, link: 'https://entry.photonind.com/pass/Xq7m', revoked_by: null },
+  { id: 'p2', visitor_name: 'Hal Contractor', visitor_email: null, group_id: 'g9', group: 'Visitors (lobby)', valid_from: hoursFrom(20), valid_to: hoursFrom(28),
+    state: 'upcoming', host: 'Fay Front', created_at: now, emailed: false, link: 'https://entry.photonind.com/pass/Ab3d', revoked_by: null },
+  { id: 'p3', visitor_name: 'Old Guest', visitor_email: null, group_id: 'g9', group: 'Visitors (lobby)', valid_from: hoursFrom(-50), valid_to: hoursFrom(-42),
+    state: 'over', host: 'Ada Owner', created_at: now, emailed: false, link: 'https://entry.photonind.com/pass/Zz9y', revoked_by: null }]
 const answers = (who) => ({
+  '/tenants/t1/sites/s1/passes': [200, PASSES], '/tenants/t1/sites/s1/visitor-groups': [200, [{ id: 'g9', name: 'Visitors (lobby)' }]],
+  '/passes/v1/Xq7m': [200, { visitor_name: 'Vera Visitor', site: 'Main office', address: '1 Mill Road, Pittsburgh PA 15212', timezone: 'America/New_York',
+    host: 'Fay Front', valid_from: hoursFrom(-1), valid_to: hoursFrom(7), state: 'active', pin: '482913', card_number: '2914587' }],
   '/tenants/t1/sites/s1/commissioning': [200, COMMISSIONING], '/tenants/t1/licenses': [200, LIC],
   '/tenants/t1/sites/s1/doors/d1/commissioning': [200, [REC]],
   '/tenants/t1/lockdowns/active': [200, who === 'lockdown' ? [LOCKDOWN] : []],
@@ -135,6 +146,7 @@ const PAGES = [
   ['lockdown-start', '/doors', 'owner', [{ button: 'Lock down' }]], ['lockdown-active', '/doors', 'lockdown'],
   ['commission-form', '/doors', 'owner', [{ button: 'Staff entrance: commission' }]],
   ['commission-record', '/doors', 'owner', [{ button: 'Main entrance: commissioning record' }]], ['licenses', '/settings/licenses', 'owner'],
+  ['visitors', '/visitors', 'owner'], ['visitor-pass-form', '/visitors', 'owner', [{ button: 'Make a pass' }]], ['visitor-own-pass', '/pass/Xq7m', 'owner'],
   ['overview', '/overview', 'owner'], ['doors', '/doors', 'owner'], ['people', '/people', 'owner'], ['person', '/people', 'owner', [{ button: 'Alice Smith' }]],
   ['access', '/access', 'owner'], ['events', '/events', 'owner'], ['customers-tech', '/', 'tech'], ['team', '/settings/team', 'owner'], ['guard', '/settings/guard', 'owner'], ['console', '/settings/console', 'owner'], ['vox', '/settings/vox', 'owner'],
   ['intercom-change', '/doors', 'owner', [{ button: 'Change' }]], ['audit', '/settings/audit', 'owner'],

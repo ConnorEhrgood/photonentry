@@ -18,7 +18,8 @@ from sqlalchemy.orm import Session
 
 from app import crypto
 from app.document import SiteDocument
-from app.models import AccessGroup, Cardholder, CardholderGroup, Credential, Door, HolidayCalendar, Intercom, Schedule, Site
+from app.models import AccessGroup, Cardholder, CardholderGroup, Credential, Door, HolidayCalendar, Intercom, Schedule, Site, utcnow
+from app.passes import ended_ids
 
 
 def build(db: Session, site: Site) -> SiteDocument:
@@ -29,8 +30,11 @@ def build(db: Session, site: Site) -> SiteDocument:
     intercoms = db.execute(select(Intercom).where(Intercom.site_id == sid)).scalars().all()
     calendar = db.get(HolidayCalendar, sid)
     memberships = db.execute(select(CardholderGroup).where(CardholderGroup.site_id == sid)).scalars().all()
+    over = ended_ids(db, sid, utcnow())          # visitors' passes that ended more than a day ago are no longer sent (app/passes.py)
     by_holder: Dict[uuid.UUID, List[str]] = {}
     for m in memberships:
+        if m.cardholder_id in over:
+            continue
         by_holder.setdefault(m.cardholder_id, []).append(str(m.group_id))
     holders = db.execute(select(Cardholder).where(Cardholder.id.in_(list(by_holder)))).scalars().all() if by_holder else []
     creds = db.execute(select(Credential).where(Credential.cardholder_id.in_([h.id for h in holders]))).scalars().all() if holders else []

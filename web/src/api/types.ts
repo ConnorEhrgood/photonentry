@@ -59,7 +59,7 @@ export interface Door {
 export interface Window { days: string[]; start: string; end: string }
 export interface Schedule { id: string; name: string; windows: Window[]; on_holidays: 'off' | 'normal' }
 export interface Rule { doors: string[]; schedule_id: string | null }
-export interface Group { id: string; name: string; rules: Rule[] }
+export interface Group { id: string; name: string; rules: Rule[]; for_visitors?: boolean }
 export interface Holiday { day: string; name: string }
 
 export interface Cardholder {
@@ -249,4 +249,37 @@ export interface SiteCommissioning {
   lock_types: Record<string, string>
   special_locking: Record<string, string>
   doors: DoorCommissioning[]
+}
+
+/** A visitor's pass (api/app/routes/passes.py). `pin` and `card_number` come only when it is issued. */
+export interface VisitorPass {
+  id: string
+  visitor_name: string
+  visitor_email: string | null
+  group_id: string
+  group: string
+  valid_from: string
+  valid_to: string
+  state: 'active' | 'upcoming' | 'over' | 'revoked'
+  host: string
+  created_at: string
+  emailed: boolean
+  link: string
+  revoked_by: string | null
+  pin?: string | null
+  card_number?: string | null
+}
+
+/** The visitor's own view of their pass (no sign-in). */
+export interface PassPage {
+  visitor_name: string
+  site: string
+  address: string
+  timezone: string
+  host: string
+  valid_from: string
+  valid_to: string
+  state: VisitorPass['state']
+  pin: string | null
+  card_number: string | null
 }

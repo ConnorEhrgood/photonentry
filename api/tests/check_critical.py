@@ -30,6 +30,9 @@ CRITICAL = [
     "api/app/routes/lockdown.py",       # locking a site down, and saying so truthfully
     "api/app/commissioning.py",         # when a door counts as in service, and with which license
     "api/app/routes/commissioning.py",
+    "api/app/publishing.py",            # what a publish sends each controller
+    "api/app/passes.py",                # giving a stranger a way in
+    "api/app/routes/passes.py",
     "api/app/consolefeed.py",           # what a PhotonConsole feed sees: one organization, never people
 ]
 
