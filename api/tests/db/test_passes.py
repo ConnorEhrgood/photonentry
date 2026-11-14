@@ -84,6 +84,12 @@ def test_an_operator_issues_a_pass_that_reaches_the_controller_without_the_admin
     token = p["link"].rsplit("/", 1)[1]
     page = client.get(f"/passes/v1/{token}").json()
     assert (page["visitor_name"], page["site"], page["state"], page["pin"]) == ("Vera Visitor", "Main office", "active", p["pin"])
+    # The QR code carries the pass's card number (what the controller holds as its 34-bit card).
+    assert page["qr"].startswith("data:image/svg+xml") and p["qr"] == page["qr"]
+    from app.passes import qr_data_uri
+    assert page["qr"] == qr_data_uri(page["card_number"]) and page["card_number"].isdigit()
+    import segno
+    assert segno.make(page["card_number"], error="m", micro=False).mode == "numeric"
     assert client.get("/passes/v1/not-a-token").status_code == 404 and client.get("/passes/v1/" + "x" * 65).status_code == 404
     # In the operator's list; audited in the operator's name.
     assert [x["visitor_name"] for x in client.get(f"/tenants/{world.a}/sites/{world.a1}/passes", headers=auth("a-op")).json()] == ["Vera Visitor"]
@@ -100,7 +106,7 @@ def test_revoking_a_pass_refuses_it_at_once(client, world, link, mailer):
     pin = next(c for c in latest(link, ids)["credentials"] if c["IdData"][0] == {"Name": "PIN", "Value": p["pin"]})
     assert pin["Enabled"] is False
     page = client.get(f"/passes/v1/{p['link'].rsplit('/', 1)[1]}").json()
-    assert page["state"] == "revoked" and page["pin"] is None
+    assert page["state"] == "revoked" and page["pin"] is None and page["qr"] is None
     assert client.post(f"/tenants/{world.a}/sites/{world.a1}/passes/{p['id']}/revoke", headers=auth("a-op")).status_code == 200   # again: no change
     assert client.post(f"/tenants/{world.a}/sites/{world.a1}/passes/{uuid.uuid4()}/revoke", headers=auth("a-op")).status_code == 404
 

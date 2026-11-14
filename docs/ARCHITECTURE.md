@@ -75,6 +75,9 @@ Connor can answer are in §13.
 | 23 | **Visitor QR codes** carry a time-boxed credential number. The Akuvox reads the code and passes the number by Wiegand like a card, so the controller checks it offline. Visitor PINs are the fallback | Box-free and offline-safe (bench H9) | 10.1 |
 | 24 | **Order:** the build starts now, on a simulator (Connor, 2026-11-13); the bench tests run when hardware is bought; the directory (D1) before production. **E1 is no longer a prerequisite** | No PhotonEdge dependency | 12 |
 
+| 25 | **Phone unlock signs in with PhotonID** (Connor, 2026-11-14): a "door user" role in PhotonEntry's role catalog, so the directory sends cardholders who have a PhotonID account, linked to their cardholder record; Unlock only on the doors that person's access allows. **Pairing links** for people without an account are a later option, not built | One identity across the suite; the directory decides who is a person | 10.2 |
+| 26 | **segno** (pinned) draws the visitor pass's QR code (Connor, 2026-11-14) | A small, pure-Python encoder; no service involved | 10.2 |
+| 27 | **Uncommissioned doors are held back** (Connor, 2026-11-14): a door not signed off gets only the installer test setup (the installer's test credentials and test schedules), never the customer's real settings; the real settings flow automatically once its commissioning record is signed; the app shows this clearly | Real people's access starts only on a door someone has signed off | 7.2 |
 ---
 
 ## Terms (what the integrator sees, and what the code calls it)

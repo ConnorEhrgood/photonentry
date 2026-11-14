@@ -22,7 +22,7 @@ describe('visitors', () => {
     let list: VisitorPass[] = [pass({ id: 'p0', visitor_name: 'Old Guest', state: 'over' })]
     const { calls } = app('/visitors', {
       [`GET ${S}/passes`]: () => list, [`GET ${S}/visitor-groups`]: [{ id: 'g9', name: 'Visitors' }],
-      [`POST ${S}/passes`]: () => { const p = pass({ pin: '482913', emailed: true, visitor_email: 'vera@example.com' }); list = [p, ...list]; return p },
+      [`POST ${S}/passes`]: () => { const p = pass({ pin: '482913', emailed: true, visitor_email: 'vera@example.com', qr: 'data:image/svg+xml;base64,PHN2Zy8+' }); list = [p, ...list]; return p },
       [`POST ${S}/passes/p1/revoke`]: () => { list = [pass({ state: 'revoked' }), list[1]]; return list[0] },
     })
     expect(await screen.findByText('Old Guest')).toBeInTheDocument()
@@ -36,6 +36,7 @@ describe('visitors', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Make the pass' }))
     const made = await screen.findByRole('dialog', { name: 'Pass for Vera Visitor' })
     expect(within(made).getByText('482913')).toBeInTheDocument()
+    expect(within(made).getByRole('img', { name: /QR code for Vera Visitor/ })).toBeInTheDocument()
     expect(within(made).getByText(/emailed to vera@example.com/)).toBeInTheDocument()
     const body = calls.find((c) => c.method === 'POST')?.body as Record<string, string>
     expect(body.group_id).toBe('g9') && expect(body.visitor_email).toBe('vera@example.com')
@@ -62,11 +63,13 @@ describe('visitors', () => {
 
 describe("the visitor's own page", () => {
   const page = (o = {}) => ({ visitor_name: 'Vera Visitor', site: 'Main office', address: '1 Mill Road, Pittsburgh PA', timezone: 'America/New_York', host: 'A Op',
-    valid_from: soon(0), valid_to: soon(8), state: 'active', pin: '482913', card_number: '2914587', ...o })
+    valid_from: soon(0), valid_to: soon(8), state: 'active', pin: '482913', card_number: '2914587', qr: 'data:image/svg+xml;base64,PHN2Zy8+', ...o })
 
   it('shows where, when and the PIN, with no sign-in', async () => {
     renderApp(<Routes><Route path="*" element={<App />} /></Routes>, { route: '/pass/tok', bare: true, routes: { 'GET /passes/v1/tok': page() } })
     expect(await screen.findByLabelText('Your PIN')).toHaveTextContent('482913')
+    expect(screen.getByRole('img', { name: "Your pass's QR code" })).toHaveAttribute('src', 'data:image/svg+xml;base64,PHN2Zy8+')
+    expect(screen.getByText('Show this to the intercom’s camera')).toBeInTheDocument()
     expect(screen.getByText('Main office')).toBeInTheDocument()
     expect(screen.getByText(/Invited by A Op/)).toBeInTheDocument()
   })

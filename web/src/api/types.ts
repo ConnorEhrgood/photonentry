@@ -268,6 +268,8 @@ export interface VisitorPass {
   revoked_by: string | null
   pin?: string | null
   card_number?: string | null
+  /** The pass's QR code (an SVG data: URI): its card number, for the intercom's camera. */
+  qr?: string | null
 }
 
 /** The visitor's own view of their pass (no sign-in). */
@@ -282,4 +284,5 @@ export interface PassPage {
   state: VisitorPass['state']
   pin: string | null
   card_number: string | null
+  qr: string | null
 }

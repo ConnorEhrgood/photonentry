@@ -72,3 +72,5 @@
 .pe-pass { text-align: center; }
 .pe-pass .ph-auth-logo { margin: 0 auto 0.5rem; }
 .pe-pass-pin { font-family: var(--font-mono, monospace); font-size: 2.5rem; font-weight: 700; letter-spacing: 0.25em; margin: 0.25rem 0 1rem; }
+.pe-qr { display: block; width: min(16rem, 70vw); height: auto; margin: 0.25rem auto 0.75rem; border-radius: var(--radius); background: #fff; image-rendering: pixelated; }
+.pe-qr-sm { width: 9rem; margin: 0; }

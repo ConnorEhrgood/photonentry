@@ -70,6 +70,7 @@ export function VisitorsPage() {
         <Modal title={`Pass for ${made.visitor_name}`} onClose={() => setMade(null)}>
           <p>{made.emailed ? `It was emailed to ${made.visitor_email}.` : 'Give the visitor this link (or read them the PIN).'}</p>
           <dl className="pe-setup">
+            {made.qr && <><dt>QR code</dt><dd><img className="pe-qr pe-qr-sm" src={made.qr} alt={`QR code for ${made.visitor_name}'s pass`} /></dd></>}
             <dt>PIN</dt><dd><code className="pe-code pe-secret pe-pin">{made.pin}</code></dd>
             <dt>Link</dt><dd><code className="pe-code pe-secret">{made.link}</code></dd>
             <dt>When</dt><dd>{when(made.valid_from)} to {when(made.valid_to)}, {made.group}</dd>
@@ -148,7 +149,13 @@ export function PassPageRoute() {
               <p>{at(page.valid_from)} to {at(page.valid_to)}<br /><span className="ph-hint">Invited by {page.host}</span></p>
               {page.pin ? (
                 <>
-                  <p className="ph-hint">At the door’s keypad, enter</p>
+                  {page.qr && (
+                    <>
+                      <p className="ph-hint">Show this to the intercom’s camera</p>
+                      <img className="pe-qr" src={page.qr} alt="Your pass's QR code" />
+                    </>
+                  )}
+                  <p className="ph-hint">{page.qr ? 'or, at the door’s keypad, enter' : 'At the door’s keypad, enter'}</p>
                   <p className="pe-pass-pin" aria-label="Your PIN">{page.pin}</p>
                   {page.state === 'upcoming' && <p className="ph-hint">It works from the time above.</p>}
                 </>

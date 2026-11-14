@@ -139,6 +139,6 @@ def visitor_page(token: str, request: Request) -> Dict[str, Any]:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
         site = s.get(Site, p.site_id)
         st = passes.state(p, _now())
-        values = passes.secret_values(s, p) if st in ("active", "upcoming") else {"pin": None, "card_number": None}
+        values = passes.secret_values(s, p) if st in ("active", "upcoming") else {"pin": None, "card_number": None, "qr": None}
         return {"visitor_name": p.visitor_name, "site": site.name, "address": site.address, "timezone": site.timezone, "host": p.host_label,
                 "valid_from": p.valid_from.isoformat(), "valid_to": p.valid_to.isoformat(), "state": st, **values}

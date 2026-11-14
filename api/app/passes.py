@@ -1,8 +1,8 @@
 """Visitors' passes (ARCHITECTURE §10.2; Step 6). CRITICAL: an operator gives a stranger a way in.
 
 A pass is a cardholder of its own, in **one access group an admin opened to visitors** (`for_visitors`), at one site, valid for a window of
-at most 31 days, with two credentials: a 6-digit PIN for the keypad, and a 32-bit card number (34-bit Wiegand) that a QR code will carry once
-the bench shows how Akuvox reads one (ARCHITECTURE §3.4). The controller enforces the window itself (the credentials' ValidFrom and ValidTo).
+at most 31 days, with two credentials: a 6-digit PIN for the keypad, and a 32-bit card number (34-bit Wiegand) that its QR code carries (Akuvox reads it at
+the intercom; confirmed per model on the bench, ARCHITECTURE §3.4). The controller enforces the window itself (the credentials' ValidFrom and ValidTo).
 
 **Operators issue passes; the system writes them.** Operators may not write cardholders, credentials or settings (row-level security). The
 API checks the person first (capability `entry.visitors.manage` at the site, a group open to visitors, a sane window), then this module writes
@@ -156,9 +156,18 @@ def state(p: VisitorPass, now: datetime) -> str:
     return "active"
 
 
+def qr_data_uri(card_number: str) -> str:
+    """The pass's QR code: its card number, which the intercom reads and sends to the controller as a card (34-bit Wiegand; whether every
+    Akuvox model sends a QR's content that way is a bench item, ARCHITECTURE §3.4). An SVG as a data: URI for an <img>."""
+    import segno
+    return segno.make(card_number, error="m", micro=False).svg_data_uri(scale=8, border=2, dark="#000", light="#fff")
+
+
 def secret_values(db: Session, p: VisitorPass) -> Dict[str, Optional[str]]:
-    """The pass's PIN and card number, for the visitor's own page (and the host's)."""
-    out: Dict[str, Optional[str]] = {"pin": None, "card_number": None}
+    """The pass's PIN, card number and its QR code, for the visitor's own page (and the host's)."""
+    out: Dict[str, Optional[str]] = {"pin": None, "card_number": None, "qr": None}
     for c in db.execute(select(Credential).where(Credential.cardholder_id == p.cardholder_id)).scalars():
         out["pin" if c.kind == "pin" else "card_number"] = crypto.unseal(c.value_sealed)
+    if out["card_number"]:
+        out["qr"] = qr_data_uri(out["card_number"])
     return out
