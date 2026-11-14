@@ -27,6 +27,7 @@ CRITICAL = [
     "api/app/akuvox.py",                # what an intercom is set up to do: never open the door itself
     "api/app/routes/provision.py",      # which intercom gets which settings
     "api/app/vox.py",                   # SIP passwords from PhotonVox, and a name on a door opening
+    "api/app/routes/lockdown.py",       # locking a site down, and saying so truthfully
     "api/app/consolefeed.py",           # what a PhotonConsole feed sees: one organization, never people
 ]
 

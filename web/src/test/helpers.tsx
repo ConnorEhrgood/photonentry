@@ -82,7 +82,8 @@ function Ready({ children, bare }: { children: ReactElement; bare?: boolean }) {
 }
 
 export function renderApp(ui: ReactElement, opts: { routes: Record<string, Handler | unknown>; route?: string; me?: Me; source?: FakeSource; bare?: boolean } = { routes: {} }) {
-  const { fn, calls } = fakeFetch({ 'GET /me': opts.me ?? ME, ...opts.routes })
+  // Every page's banner asks for active lockdowns; none unless a test says otherwise.
+  const { fn, calls } = fakeFetch({ 'GET /me': opts.me ?? ME, 'GET /tenants/t1/lockdowns/active': [], 'GET /tenants/t2/lockdowns/active': [], ...opts.routes })
   const source = opts.source ?? new FakeSource()
   vi.stubGlobal('fetch', fn)
   const utils = render(

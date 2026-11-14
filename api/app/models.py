@@ -392,3 +392,29 @@ class CallMatch(Base):
     name: Mapped[str] = mapped_column(String(128), default="")
     person_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUIDT)
     matched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Lockdown(Base):
+    """A site's lockdown (ARCHITECTURE §9.6, decision 17): its scope (the whole site or some doors), why, who started it and how, and who ended it
+    and why. At most one is active per site. The doors are locked down by the controller itself (`tdc:LockDownDoor`, one command per door,
+    `start_commands`), so it holds with the cloud away; ending it releases the same doors (`end_commands`). Egress and fire release are never
+    touched (ARCHITECTURE §7.1)."""
+    __tablename__ = "lockdown"
+    id: Mapped[uuid.UUID] = mapped_column(UUIDT, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUIDT, index=True)
+    site_id: Mapped[uuid.UUID] = mapped_column(UUIDT, index=True)
+    door_ids: Mapped[List[str]] = mapped_column(JSONB, default=list)              # the doors locked down (the whole site: every door it had)
+    whole_site: Mapped[bool] = mapped_column(Boolean, default=True)
+    reason: Mapped[str] = mapped_column(String(200))
+    source: Mapped[str] = mapped_column(String(10), default="app")                # app | input
+    started_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUIDT)
+    started_by_label: Mapped[str] = mapped_column(String(200), default="")
+    started_by_source: Mapped[str] = mapped_column(String(10), default="direct")  # direct | partner | platform (the audit trail's words)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    start_commands: Mapped[List[str]] = mapped_column(JSONB, default=list)
+    ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    ended_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUIDT)
+    ended_by_label: Mapped[str] = mapped_column(String(200), default="")
+    ended_by_source: Mapped[str] = mapped_column(String(10), default="")
+    end_reason: Mapped[str] = mapped_column(String(200), default="")
+    end_commands: Mapped[List[str]] = mapped_column(JSONB, default=list)

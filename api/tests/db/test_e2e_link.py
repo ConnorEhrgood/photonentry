@@ -118,10 +118,10 @@ def test_a_door_from_claim_to_unlock_through_the_api(stack):
     until(lambda: api.get(f"/tenants/{t}/commands/{cmd['id']}", headers=op).json()["done"], "the remote unlock")
     assert api.get(f"/tenants/{t}/commands/{cmd['id']}", headers=op).json()["ok"] is True
     # Lockdown and its end, for the whole site.
-    lock = api.post(f"/tenants/{t}/sites/{s}/lockdown", headers=op, json={"on": True}).json()["commands"][0]
+    lock = api.post(f"/tenants/{t}/sites/{s}/lockdown", headers=op, json={"on": True, "reason": "Drill"}).json()["commands"][0]
     until(lambda: api.get(f"/tenants/{t}/commands/{lock['id']}", headers=op).json()["done"], "the lockdown")
     assert stack.device.runtime[DOOR2].mode == "LockedDown"
-    end = api.post(f"/tenants/{t}/sites/{s}/lockdown", headers=op, json={"on": False}).json()["commands"][0]
+    end = api.post(f"/tenants/{t}/sites/{s}/lockdown", headers=op, json={"on": False, "reason": "Drill over"}).json()["commands"][0]
     until(lambda: api.get(f"/tenants/{t}/commands/{end['id']}", headers=op).json()["done"], "the end of the lockdown")
     assert stack.device.runtime[DOOR2].mode != "LockedDown"
     # The owner sees it all in the audit trail.

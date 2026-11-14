@@ -122,21 +122,50 @@ describe('the daily pages', () => {
     expect(screen.getByRole('link', { name: 'Set up this site' })).toHaveAttribute('href', '/org/t1/setup?site=s1')
   })
 
-  it('doors: open one now and lock the site down, after confirming', async () => {
+  it('doors: open one now; lock some doors down with a reason, see each door, end it with a reason', async () => {
     const user = userEvent.setup()
+    const lk = (o = {}) => ({ id: 'l1', site_id: 's1', site: 'Main office', whole_site: false, reason: 'Threat reported', source: 'app', started_by: 'A Op',
+      started_at: new Date().toISOString(), active: true, ended_at: null, ended_by: null, end_reason: null,
+      doors: [{ door_id: 'd1', door: 'Main entrance', state: 'done', error: '' }], ...o })
+    let lockdowns: unknown[] = []
     const { calls } = renderApp(<Routes><Route path="*" element={<App />} /></Routes>, {
       route: '/doors', me: meWith(OPERATOR), routes: {
         [`GET ${T}/sites`]: SITES, [`GET ${T}/sites/s1/doors`]: DOORS, [`GET ${T}/sites/s1/schedules`]: [{ id: 'sc1', name: 'Business hours', windows: [], on_holidays: 'off' }],
-        [`POST ${T}/doors/d1/action`]: { id: 'cmd1' }, [`POST ${T}/sites/s1/lockdown`]: { commands: [] },
+        [`POST ${T}/doors/d1/action`]: { id: 'cmd1' }, [`GET ${T}/sites/s1/lockdowns`]: () => lockdowns,
+        [`POST ${T}/sites/s1/lockdown`]: (b) => { lockdowns = (b as { on: boolean }).on ? [lk()] : [lk({ active: false })]; return { lockdown: lockdowns[0], commands: [] } },
       },
     })
     expect(await screen.findByText('Business hours')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Open now' }))
     expect(await screen.findByText('Main entrance: opening for 7 seconds.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Lock down' }))
-    await user.click(within(screen.getByRole('group', { name: /Lock every door/ })).getByRole('button', { name: 'Yes' }))
-    expect(await screen.findByText(/Lockdown sent to every door/)).toBeInTheDocument()
-    expect(calls.filter((c) => c.method === 'POST').map((c) => c.body)).toEqual([{ action: 'access' }, { on: true }])
+    const dialog = screen.getByRole('dialog', { name: 'Lock down Main office' })
+    const go = within(dialog).getByRole('button', { name: 'Lock down now' })
+    expect(go).toBeDisabled()                                                   // a reason first
+    await user.click(within(dialog).getByLabelText('Some doors'))
+    await user.click(within(dialog).getByLabelText('Main entrance'))
+    await user.type(within(dialog).getByLabelText('Why'), 'Threat reported')
+    await user.click(go)
+    expect(await screen.findByRole('heading', { name: /Locked down/ })).toBeInTheDocument()
+    expect(screen.getByText('Confirmed')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Lock down' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'End the lockdown' }))
+    const ending = screen.getByRole('dialog', { name: 'End the lockdown at Main office' })
+    await user.type(within(ending).getByLabelText('Why it can end'), 'All clear')
+    await user.click(within(ending).getByRole('button', { name: 'End the lockdown' }))
+    expect(await screen.findByRole('button', { name: 'Lock down' })).toBeInTheDocument()
+    expect(calls.filter((c) => c.method === 'POST').map((c) => c.body)).toEqual([{ action: 'access' },
+      { on: true, reason: 'Threat reported', door_ids: ['d1'] }, { on: false, reason: 'All clear' }])
+  })
+
+  it('every page says when a site is locked down, and keeps checking', async () => {
+    const active = [{ id: 'l1', site_id: 's1', site: 'Main office', whole_site: true, reason: 'Threat reported', source: 'app', started_by: 'Partner support',
+      started_at: new Date().toISOString(), active: true, ended_at: null, ended_by: null, end_reason: null, doors: [] }]
+    app('/events', { [`GET ${T}/lockdowns/active`]: active, [`GET ${T}/sites/s1/events?limit=200`]: [] })
+    const banner = await screen.findByRole('alert')
+    expect(banner).toHaveTextContent('Main office is locked down: Threat reported.')
+    expect(banner).toHaveTextContent('by Partner support')
+    expect(within(banner).getByRole('link', { name: 'See the doors' })).toHaveAttribute('href', '/org/t1/doors?site=s1')
   })
 
   it('doors: a viewer sees them without the buttons; an empty site offers setup', async () => {

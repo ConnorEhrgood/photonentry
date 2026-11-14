@@ -358,3 +358,24 @@ Screenshots of the tab and the picker, looked at.
 
 **Not verified:** against PhotonVox itself (its side is not built). **A flaky web test** (schedule editing) failed once under coverage load
 and passed on its own twice: a timing margin to widen if it recurs.
+
+## 2026-11-14: Step 6, lockdown (part 1)
+
+**Built:**
+- **Lockdown as a record** (`lockdown` table, migration 0006; `app/routes/lockdown.py`, CRITICAL): the whole site or chosen doors, a required
+  reason, who started it (operators and up) and from where, one command per door (`tdc:LockDownDoor`: the controller holds it with the cloud
+  away), each door's state (confirmed, waiting, refused, not confirmed in time, controller out of service), and its end with a reason, by name.
+  One active lockdown per site (a unique index settles two at once). A door whose controller is out of service never stops the rest from
+  locking down. Everyone at the site can read it; only operators and up start or end it, in their own name; what started it is never rewritten.
+- **Web:** "Lock down" asks which doors and why; the Doors page shows the lockdown with each door's state and "End the lockdown" (a reason
+  again); every page shows a banner while a site is locked down, checked every 15 s; "Open now" is hidden on locked-down doors (the controller
+  ignores it).
+
+**Researched** (`sim/reference/AXIS-LOCKDOWN.md`, public Axis documents): responders and a wired panic input. Axis documents no lockdown
+exemption and no door action in the controller's own rules on the VAPIX track; its own "Exempt from lockdown" is in its VMS. Both are bench
+items with probes written down; nothing built on a guess. Also found: controllers ship on firmware tracks, and Axis tells integrators to use
+the VAPIX track (switching needs a factory reset): noted for buying the bench kit (ARCHITECTURE §3.6).
+
+**Verified:** the lockdown tests (scope, reason, one at a time and the race, door states, out-of-service controllers, who may, row-level
+security) at 100% branch coverage; the end-to-end test locks a simulated door down and releases it; web tests for the dialog, the panel and the
+banner; screenshots at the three sizes, looked at (two fixes: "Open now" on locked-down doors, the panel's spacing).

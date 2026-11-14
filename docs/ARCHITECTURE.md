@@ -262,6 +262,9 @@ controller. OSDP works only on some models and is untested with third-party cont
 
 ### 3.6 Bench tests (gate before the build)
 
+**Firmware track (2026-11-14, sim/reference/AXIS-LOCKDOWN.md §0):** A1610/A1210 ship on firmware tracks (Secure Entry, VAPIX, Genetec), and
+Axis tells integrators to use the VAPIX track; switching needs a factory reset. Order the bench units on the VAPIX track, or plan the reset.
+
 | # | Test | Pass |
 |---|---|---|
 | H1 | **`entry-link` on an A1610**: chip architecture; firmware track; install a test app; get the app service account; reach the access-control API on loopback (users, credentials, access profiles, schedules, door commands, events) | All work on one firmware track, written down with its version |
@@ -553,6 +556,10 @@ Console offers **no door actions**: an automation must never open a door.
     - refuses ordinary credentials, while the **responders** group keeps working;
     - notifies every admin and operator.
   - **It ends** only by a person with the capability, with a reason. Egress and fire release are never affected.
+  - **Built (2026-11-14):** the record (scope, reason, who started and ended it and why, each door's confirmation), `tdc:LockDownDoor` per door,
+    the banner on every page. **Waiting for the bench** (sim/reference/AXIS-LOCKDOWN.md): responders (Axis documents no way for some
+    credentials to pass a locked-down door on the VAPIX track) and the panic input (no documented door action on the controller's own rules;
+    two candidate designs).
 - **Emergency alerts** (suite idea, not designed): a lockdown publishes an emergency event that Vox (paging, call lists), Board (messages on
   signs), Guard (incident, bookmarks) and Console can act on. It deserves a suite design pass (§14).
 

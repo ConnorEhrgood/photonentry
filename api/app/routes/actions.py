@@ -1,8 +1,8 @@
 """Remote actions on doors, the site's lockdown, door events and the audit trail.
 
 Remote actions are commands to the door's controller, delivered by the link within about a second and refused there once they expire
-(a late unlock is worse than none). They are written in the acting person's own name, under row-level security, and audited. Lockdown is one
-command per door of the site; ending it is the same, reversed. Neither touches egress or fire release, which are hardware (ARCHITECTURE §7.1).
+(a late unlock is worse than none). They are written in the acting person's own name, under row-level security, and audited. Lockdown is
+app/routes/lockdown.py.
 """
 from __future__ import annotations
 
@@ -31,12 +31,7 @@ class DoorAction(BaseModel):
     action: Literal["access", "unlock", "lock"] = "access"
 
 
-class LockdownIn(BaseModel):
-    on: bool
-    door_ids: Optional[List[uuid.UUID]] = None      # none: every door of the site
-
-
-def _command(db: Session, ctx: Ctx, door: Door, kind: str) -> Dict[str, Any]:
+def command(db: Session, ctx: Ctx, door: Door, kind: str) -> Dict[str, Any]:
     c = db.get(Controller, door.controller_id)
     if c is None or c.state != "claimed":
         raise problem({"code": "controller_not_in_service", "detail": "This door's controller is not in service"}, 409)
@@ -53,27 +48,10 @@ def door_action(door_id: uuid.UUID, body: DoorAction, ctx: Ctx = Depends(tenant_
     if d is None or d.tenant_id != ctx.tenant_id:
         raise not_found()
     site_of(db, ctx, d.site_id, "entry.door.unlock")
-    out = _command(db, ctx, d, body.action)
+    out = command(db, ctx, d, body.action)
     log(db, ctx, f"door.{body.action}", site_id=d.site_id, target_type="door", target_id=d.id, command=out["id"])
     db.commit()
     return out
-
-
-@router.post("/sites/{site_id}/lockdown", status_code=202)
-def lockdown(site_id: uuid.UUID, body: LockdownIn, ctx: Ctx = Depends(tenant_ctx), db: Session = Depends(get_db)) -> Dict[str, Any]:
-    site = site_of(db, ctx, site_id, "entry.lockdown")
-    doors = db.execute(select(Door).where(Door.site_id == site.id).order_by(Door.name)).scalars().all()
-    if body.door_ids is not None:
-        wanted = set(body.door_ids)
-        doors = [d for d in doors if d.id in wanted]
-        if len(doors) != len(wanted):
-            raise problem({"code": "no_such_door", "detail": "A door is not this site's"})
-    kind = "lockdown" if body.on else "lockdown_release"
-    commands = [_command(db, ctx, d, kind) for d in doors]
-    log(db, ctx, "site.lockdown" if body.on else "site.lockdown_end", site_id=site.id, target_type="site", target_id=site.id,
-        doors=[str(d.id) for d in doors])
-    db.commit()
-    return {"commands": commands}
 
 
 @router.get("/commands/{command_id}")

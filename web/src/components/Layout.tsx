@@ -7,6 +7,7 @@ import { AppShell, type NavGroup, type NavItem } from '../shell/AppShell'
 import { loadApps } from '../shell/AppSwitcher'
 import { settingsTabs } from '../pages/Hubs'
 import logo from '../assets/photon-logo.png'
+import { LockdownBanner, useActiveLockdowns } from './Lockdown'
 
 /** "Manage organization": people, sites and products are managed in the PhotonID directory app, not here. */
 export const DIRECTORY_URL = config.directoryAppUrl
@@ -21,6 +22,7 @@ export function Layout() {
   const orgSlug = current ? orgKey(current) : null
   const siteSlug = inSite?.params.siteSlug ?? null
   // The suite's app switcher: every product, opening on this same organization and site (never another customer; photonid docs/HOME-PLAN.md §3).
+  const lockdowns = useActiveLockdowns()
   const loadSwitcher = useCallback(async () => loadApps(config.directoryApiUrl, await source.getAccessToken(), orgSlug!, siteSlug), [source, orgSlug, siteSlug])
   if (moved) return <Navigate to={moved} replace />
   if (missing) return <OrgNotFound />
@@ -52,7 +54,7 @@ export function Layout() {
           {tenants.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
       ) : <span className="ph-hint">{current.name}</span>}
-      banner={current.status === 'suspended' ? (
+      banner={lockdowns.length > 0 ? <LockdownBanner lockdowns={lockdowns} /> : current.status === 'suspended' ? (
         <div className="ph-banner ph-banner-warning" role="alert">
           This organization’s PhotonEntry plan needs attention: new doors and cardholders are paused. Every door and credential keeps working.
         </div>

@@ -56,3 +56,8 @@
 .pe-setup { display: grid; gap: 0.25rem 1rem; margin: 0 0 1rem; }
 .pe-setup dt { font-weight: 600; margin-top: 0.5rem; }
 .pe-setup dd { margin: 0; }
+
+/* Lockdown (components/Lockdown.tsx) */
+.pe-lockdown { margin-bottom: 1.25rem; }
+.pe-lockdown-banner p { margin: 0; }
+.pe-lockdown-banner p + p { margin-top: 0.5rem; }

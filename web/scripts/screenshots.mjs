@@ -80,7 +80,13 @@ const AUDIT = [{ at: now, actor: 'Partner support', action: 'site.publish', targ
 const APPS = { home: 'https://account.photonind.com/', organization: { id: 't1', slug: 'cedar-works', name: 'Cedar Works' }, site: { id: 's1', slug: 'cw-main', name: 'Main office' },
   apps: [['account', 'PhotonID', 'open'], ['console', 'PhotonConsole', 'open'], ['guard', 'PhotonGuard', 'open'], ['entry', 'PhotonEntry', 'open'], ['vox', 'PhotonVox', 'not_enabled'],
     ['board', 'PhotonBoard', 'no_access'], ['edge', 'PhotonEdge', 'coming']].map(([key, name, state]) => ({ key, name, state, ...(state === 'open' ? { url: `https://${key}.photonind.com/org/cedar-works/site/cw-main/` } : {}) })) }
+const LOCKDOWN = { id: 'l1', site_id: 's1', site: 'Main office', whole_site: true, reason: 'Threat reported in the parking lot', source: 'app',
+  started_by: 'Fay Front', started_at: new Date(Date.now() - 4 * 60e3).toISOString(), active: true, ended_at: null, ended_by: null, end_reason: null,
+  doors: [{ door_id: 'd1', door: 'Main entrance', state: 'done', error: '' }, { door_id: 'd2', door: 'Staff entrance', state: 'done', error: '' },
+    { door_id: 'd3', door: 'IT closet', state: 'expired', error: '' }] }
 const answers = (who) => ({
+  '/tenants/t1/lockdowns/active': [200, who === 'lockdown' ? [LOCKDOWN] : []],
+  '/tenants/t1/sites/s1/lockdowns': [200, who === 'lockdown' ? [LOCKDOWN] : []],
   '/v1/me/apps': [200, APPS],
   '/me': [200, who === 'tech' ? me([tech(), tech({ id: 't2', name: 'Birch Co', status: 'suspended' }), tech({ id: 't3', name: 'Elm Street School' })], { name: 'Tom Tech' }) : me([tenant()])],
   '/templates': [200, CATALOG],
@@ -107,6 +113,7 @@ const answers = (who) => ({
 const PAGES = [
   ['org-home', '/org/cedar-works/', 'owner'], ['site-home', '/org/cedar-works/site/cw-main/', 'owner'],
   ['switcher', '/org/cedar-works/site/cw-main/doors', 'owner', [{ button: 'Switch app' }]],
+  ['lockdown-start', '/doors', 'owner', [{ button: 'Lock down' }]], ['lockdown-active', '/doors', 'lockdown'],
   ['overview', '/overview', 'owner'], ['doors', '/doors', 'owner'], ['people', '/people', 'owner'], ['person', '/people', 'owner', [{ button: 'Alice Smith' }]],
   ['access', '/access', 'owner'], ['events', '/events', 'owner'], ['customers-tech', '/', 'tech'], ['team', '/settings/team', 'owner'], ['guard', '/settings/guard', 'owner'], ['console', '/settings/console', 'owner'], ['vox', '/settings/vox', 'owner'],
   ['intercom-change', '/doors', 'owner', [{ button: 'Change' }]], ['audit', '/settings/audit', 'owner'],

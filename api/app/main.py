@@ -58,8 +58,9 @@ def create_app(link: Link, routes: bool = True) -> FastAPI:
         return app
 
     from app.db import engine, system_engine
-    from app.routes import actions, cardholders, config, controllers, directory_notify, integrations, intercoms, me, provision, summary, tenants
-    for r in (me, tenants, directory_notify, controllers, config, cardholders, actions, integrations, intercoms, provision, summary):
+    from app.routes import actions, cardholders, config, controllers, directory_notify, integrations, intercoms, lockdown, me, provision, summary, tenants
+    for r in (me, tenants, directory_notify, controllers, config, cardholders, actions, lockdown, integrations, intercoms, provision,
+              summary):
         app.include_router(r.router)
     app.include_router(tenants.catalog_router)
     if settings.cors_list:

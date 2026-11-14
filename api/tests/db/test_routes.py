@@ -220,10 +220,10 @@ def test_remote_actions_lockdown_events_and_audit(client, world, link, db):
     due = link.store.due_commands(ids["controller"], datetime.now(timezone.utc))
     assert [(c.kind, c.door) for c in due] == [("access", "door1")] and due[0].actor == "A Op"
     assert client.post(f"/tenants/{world.a}/doors/{ids['front']}/action", headers=auth("a-viewer"), json={}).status_code == 403
-    lock = client.post(f"/tenants/{world.a}/sites/{world.a1}/lockdown", headers=auth("tech"), json={"on": True}).json()
+    lock = client.post(f"/tenants/{world.a}/sites/{world.a1}/lockdown", headers=auth("tech"), json={"on": True, "reason": "Drill"}).json()
     assert sorted(c["kind"] for c in lock["commands"]) == ["lockdown", "lockdown"]
     assert client.post(f"/tenants/{world.a}/sites/{world.a1}/lockdown", headers=auth("a-op"),
-                       json={"on": False, "door_ids": [str(uuid.uuid4())]}).status_code == 422
+                       json={"on": True, "reason": "x", "door_ids": [str(uuid.uuid4())]}).status_code == 409   # already locked down: one at a time
     state = client.get(f"/tenants/{world.a}/commands/{r.json()['id']}", headers=auth("a-viewer")).json()
     assert state["delivered"] is True and state["done"] is False
     # Events, as the link stores them, shown with their door and cardholder.
@@ -275,7 +275,7 @@ BODIES = {
     "/tenants/{t}/sites/{s}/holidays": {"days": []}, "/tenants/{t}/sites/{s}/groups": {"name": "X", "rules": [{"doors": ["{d}"]}]},
     "/tenants/{t}/sites/{s}/groups/{g}": {"name": "X", "rules": [{"doors": ["{d}"]}]}, "/tenants/{t}/cardholders": {"name": "X"},
     "/tenants/{t}/cardholders/{h}/groups": {"group_ids": []}, "/tenants/{t}/cardholders/{h}/credentials": {"kind": "pin", "pin": "9999"},
-    "/tenants/{t}/cardholders/import": {"site_id": "{s}", "csv": "name\nX\n"}, "/tenants/{t}/sites/{s}/lockdown": {"on": True},
+    "/tenants/{t}/cardholders/import": {"site_id": "{s}", "csv": "name\nX\n"}, "/tenants/{t}/sites/{s}/lockdown": {"on": True, "reason": "Drill"},
     "/tenants/{t}/doors/{d}/action": {}, "/tenants/{t}/sites/{s}/templates/office/apply": {"doors": {"main_entrance": {"controller_id": "{c}", "controller_door": "door1"}}}, "/tenants/{t}/controllers/{c}": {}, "/tenants/{t}/sites/{s}/doors/{d}": {},
     "/tenants/{t}/cardholders/{h}": {}, "/tenants/{t}/cardholders/{h}/credentials/{k}": {},
 }

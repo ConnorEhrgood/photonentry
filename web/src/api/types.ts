@@ -173,3 +173,20 @@ export interface VoxStation {
   site_id: string | null
   extension: string
 }
+
+/** A site's lockdown (api/app/routes/lockdown.py). */
+export interface Lockdown {
+  id: string
+  site_id: string
+  site: string
+  whole_site: boolean
+  reason: string
+  source: 'app' | 'input'
+  started_by: string
+  started_at: string
+  active: boolean
+  ended_at: string | null
+  ended_by: string | null
+  end_reason: string | null
+  doors: { door_id: string; door: string; state: 'sent' | 'done' | 'failed' | 'expired' | 'not_sent'; error: string }[]
+}

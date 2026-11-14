@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { Controller, Door, Schedule } from '../api/types'
+import type { Controller, Door, Lockdown, Schedule } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { useTenant } from '../auth/TenantContext'
 import { SitePicker, useSite, useSites } from '../components/sites'
-import { ConfirmButton, ErrorText, Loading, PageHeader, StatusBadge } from '../components/ui'
+import { ErrorText, Loading, PageHeader, StatusBadge } from '../components/ui'
 import { ago } from '../lib/format'
 import { useLoad } from '../lib/useLoad'
 import { IntercomsSection } from './Intercoms'
+import { LockdownDialog, LockdownPanel } from '../components/Lockdown'
 
 /** How a controller is doing, in a word: offline, refusing its settings, applying them, or fine. Never colour alone (DESIGN.md). */
 export function controllerState(c: Controller, now = Date.now()): { tone: 'ok' | 'info' | 'warning' | 'error'; text: string } {
@@ -77,11 +78,16 @@ export function DoorsPage() {
   const [site, pick] = useSite(sites.data)
   const doors = useLoad(() => (site ? api.get<Door[]>(`/tenants/${t}/sites/${site.id}/doors`) : Promise.resolve([])), [api, t, site?.id])
   const schedules = useLoad(() => (site ? api.get<Schedule[]>(`/tenants/${t}/sites/${site.id}/schedules`) : Promise.resolve([])), [api, t, site?.id])
+  const lockdowns = useLoad(() => (site ? api.get<Lockdown[]>(`/tenants/${t}/sites/${site.id}/lockdowns`) : Promise.resolve([])), [api, t, site?.id])
+  const [dialog, setDialog] = useState<'start' | 'end' | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   if (sites.error || doors.error) return <ErrorText>{sites.error || doors.error}</ErrorText>
   if (!sites.data || !doors.data) return <Loading what="doors" />
   const unlocking = (d: Door) => schedules.data?.find((s) => s.id === d.unlock_schedule_id)?.name
+  const active = lockdowns.data?.find((l) => l.active) ?? null
+  // The controller ignores remote opens on a locked-down door: no button that would seem to work.
+  const lockedDown = new Set(active?.doors.map((d) => d.door_id) ?? [])
   const act = async (what: () => Promise<unknown>, done: string) => {
     setError(null)
     try { await what(); setNote(done) } catch (e) { setNote(null); setError(e instanceof Error ? e.message : String(e)) }
@@ -90,17 +96,15 @@ export function DoorsPage() {
     <>
       <PageHeader title="Doors">
         <SitePicker sites={sites.data} site={site} onPick={pick} />
-        {can('entry.lockdown') && site && doors.data.length > 0 && (
-          <>
-            <ConfirmButton danger label="Lock down" confirm={`Lock every door at ${site.name}?`}
-              onConfirm={() => act(() => api.post(`/tenants/${t}/sites/${site.id}/lockdown`, { on: true }), `Lockdown sent to every door at ${site.name}. Exits stay free.`)} />
-            <ConfirmButton label="End lockdown" confirm="End the lockdown?"
-              onConfirm={() => act(() => api.post(`/tenants/${t}/sites/${site.id}/lockdown`, { on: false }), 'Lockdown ended.')} />
-          </>
+        {can('entry.lockdown') && site && doors.data.length > 0 && !active && (
+          <button className="ph-btn ph-btn-danger" onClick={() => setDialog('start')}>Lock down</button>
         )}
       </PageHeader>
       {note && <p className="ph-banner ph-banner-info" role="status">{note}</p>}
       <ErrorText>{error}</ErrorText>
+      {active && <LockdownPanel lockdown={active} canEnd={can('entry.lockdown')} onEnd={() => setDialog('end')} />}
+      {dialog && site && <LockdownDialog base={`/tenants/${t}/sites/${site.id}`} siteName={site.name} doors={doors.data} ending={dialog === 'end'}
+        onClose={() => setDialog(null)} onDone={lockdowns.reload} />}
       {doors.data.length === 0 ? (
         <div className="ph-empty"><p>No doors at {site?.name} yet.</p>{can('entry.config.manage') && site && <Link className="ph-btn" to={path(`/setup?site=${site.id}`)}>Set up {site.name}</Link>}</div>
       ) : (
@@ -113,7 +117,7 @@ export function DoorsPage() {
                   <td className="pe-who" data-label="Door"><strong>{d.name}</strong></td>
                   <td data-label="Schedule">{unlocking(d) ?? <span className="ph-hint">No: locked unless someone has access</span>}</td>
                   <td data-label="Timing">{d.access_time_s} s to open; alarm after {d.open_too_long_s} s</td>
-                  <td data-label="">{can('entry.door.unlock') && (
+                  <td data-label="">{lockedDown.has(d.id) ? <span className="ph-hint">Locked down</span> : can('entry.door.unlock') && (
                     <button className="ph-btn ph-btn-secondary ph-btn-sm" onClick={() => void act(() => api.post(`/tenants/${t}/doors/${d.id}/action`, { action: 'access' }), `${d.name}: opening for ${d.access_time_s} seconds.`)}>
                       Open now
                     </button>
