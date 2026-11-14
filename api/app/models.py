@@ -46,6 +46,7 @@ class Tenant(Base):
     status: Mapped[str] = mapped_column(String(20), default="active")       # active | suspended | removed
     home_region: Mapped[str] = mapped_column(String(40), default="us-east")
     products: Mapped[List[str]] = mapped_column(JSONB, default=list)
+    demo: Mapped[bool] = mapped_column(Boolean, default=False)                     # the directory's demo organization (photon-suite DEMO.md)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -138,6 +139,7 @@ class Controller(Base):
     health: Mapped[Dict[str, Any]] = mapped_column(JSONB, default=dict)
     claimed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    simulated: Mapped[bool] = mapped_column(Boolean, default=False)          # the demo's (docs/DEMO.md): set by the seed, never by a device
 
 
 class SettingsVersion(Base):
@@ -357,6 +359,7 @@ class Intercom(Base):
     admin_password_sealed: Mapped[str] = mapped_column(Text)                    # the intercom's web page (user admin)
     provision_token_sealed: Mapped[str] = mapped_column(Text)
     provision_token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    simulated: Mapped[bool] = mapped_column(Boolean, default=False)                     # the demo's (docs/DEMO.md)
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUIDT)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     last_fetch_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))

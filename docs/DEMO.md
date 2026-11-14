@@ -50,7 +50,13 @@ All three sites are `America/New_York`. `billboards` has no Entry part.
 
 ## 2. How it is simulated (the real protocols, nothing real touched)
 
-**One process tree in one container** (compose project `photonentry-demo`, `deploy/demo/`, labeled, capped at 0.5 CPU and 256 MB). It runs:
+**Where it runs (the operator's decision, 2026-11-14, for every product):**
+
+- All simulators run on **one demo simulator host**, never on a production host (not the Vultr host, not the Guard host). Which host it is, a small VPS or a container at home, goes to Connor in the one rollout go.
+- On that host, PhotonEntry's simulators are its own compose project, `photonentry-demo` (`deploy/demo/`): labeled, and capped at 0.5 CPU and 256 MB.
+- They reach production only as a real site does: over HTTPS to `link.entry.photonind.com` (the controllers) and `prov.entry.photonind.com` (the intercoms). No port is opened on either side.
+
+**One process tree in one container**. It runs:
 
 - **The Axis simulator** (`sim/axis_sim`, the same one the test suite uses), once per controller, each on its own loopback port, running on the real clock.
 - **The real `entry-link`** (the C program from `acap/entry-link`), once per controller.
@@ -70,7 +76,7 @@ The intercoms' events in the history (call started, opened from the intercom, ca
 **The cloud side** (`api/app/demo/`, run in the API container):
 
 - `seed` writes everything:
-  - claims the five controllers by their claim codes, to their sites;
+  - claims the six controllers by their claim codes, to their sites;
   - applies the templates;
   - creates people, cards, passes, intercoms and commissioning records;
   - with `--link-viewer` only, links the viewer to Quinn Rivera;
@@ -79,13 +85,13 @@ The intercoms' events in the history (call started, opened from the intercom, ca
 
 `seed` refuses any organization that is not marked `demo` by the directory.
 
-`scripts/demo.sh` runs both sides in order:
+`scripts/demo.sh` runs both sides in order, over SSH: the simulators on the demo host (`<sim>`), and `seed` and `remove` in a one-shot container of the PhotonEntry stack on its host (`<entry>`). That container is the stack's `demo` service, a compose profile like `migrate`. It runs as the database owner, so the API's and worker's roles get no new rights:
 
 | Command | What it does |
 |---|---|
-| `scripts/demo.sh seed <host>` | Starts the demo project. Waits for its claim codes. Pipes them into the API's `seed`. Pipes the intercoms' provisioning addresses back to the demo container. Checks that every controller reports its settings applied |
-| `scripts/demo.sh reset <host>` | `remove`, then `seed`: a clean demo with a fresh 30-day history |
-| `scripts/demo.sh remove <host>` | Stops the demo project, deletes its volumes and runs `remove` |
+| `scripts/demo.sh seed <sim> <entry>` | Starts the demo project afresh. Waits for its claim codes. Pipes them into `seed`, which removes any earlier demo data first, then sets everything up and waits until every controller has applied its settings. Pipes `seed`'s roster (which cards, doors and intercoms to drive) back to the demo container, which writes the history and goes live |
+| `scripts/demo.sh reset <sim> <entry>` | `remove`, then `seed`: a clean demo with a fresh 30-day history |
+| `scripts/demo.sh remove <sim> <entry>` | Stops the demo project, deletes its volumes and runs `remove` |
 
 All three are idempotent.
 
@@ -124,7 +130,7 @@ Each is a link an admin turns on in Entry's Integrations page.
   - **An end-to-end run** on the runner: the real entry-link binaries against the simulators with history, a card at a reader, a forced door, and an intercom call that ends in an unlock. Everything arrives as events, in order, exactly once.
 - **The dev copy:** seeded with the directory's IDs above (the organization row as the directory's sync writes it, `demo: true`).
 - **A full run on LXC 800, as production would run it:**
-  - the PhotonEntry stack and the `photonentry-demo` project in Docker;
+  - the PhotonEntry stack and the `photonentry-demo` project in Docker, as two separate projects; the simulators reach the stack only by its published address, standing in for the public names;
   - `demo.sh seed`, then a few hours live;
   - `demo.sh reset`, then `demo.sh remove`;
   - removed afterwards, as with the 2026-11-14 stack check.
@@ -134,31 +140,31 @@ Each is a link an admin turns on in Entry's Integrations page.
 
 1. **id1:** the organization and sites already have their fixed IDs. With the GATE P deploy, `entry` is switched on for `demo` and the flag reaches PhotonEntry in the next sync. Check: `tenant.demo` is true for `3560c835…`.
 2. **The PhotonEntry deploy itself** (GATE P, `scripts/deploy.sh prod`). It carries migration 0014 (`tenant.demo`, `controller.simulated`, `intercom.simulated`).
-3. **Build the demo image:** `scripts/demo.sh build prod` builds the `photonentry-demo` image on the host from the deployed release.
-4. **Seed:** `scripts/demo.sh seed prod`. The demo container joins `entry-edge` and dials `photonentry-api-1` directly; there is no public port and it does not go through Caddy. Check:
-   - the five controllers show online with their settings applied;
+3. **Build the demo image:** `scripts/demo.sh build <sim>` builds the `photonentry-demo` image on the demo host from the deployed commit.
+4. **Seed:** `scripts/demo.sh seed <sim> prod`. The simulated controllers dial `link.entry.photonind.com` and the intercoms fetch from `prov.entry.photonind.com`, as a site's would. Check:
+   - the six controllers show online with their settings applied;
    - the event list fills with 30 days of history;
    - a card, a forced door and an intercom unlock appear within the hour.
 5. **Only if the operator says so:** `seed --link-viewer`, and tell m1 which account opens doors.
 
 **Rollback:**
 
-- `scripts/demo.sh remove prod` stops the demo container, deletes its volumes and deletes every PhotonEntry row of the demo organization. Nothing of any other organization is touched, since everything is scoped to its tenant ID.
+- `scripts/demo.sh remove <sim> prod` stops the demo container, deletes its volumes and deletes every PhotonEntry row of the demo organization. Nothing of any other organization is touched, since everything is scoped to its tenant ID.
 - The migration is additive (three columns with defaults), so it stays in place.
-- If a step goes wrong after step 4, `demo.sh reset prod` brings the demo back to a clean state.
+- If a step goes wrong after step 4, `demo.sh reset <sim> prod` brings the demo back to a clean state.
 
 ## 5. Monthly cost
 
 | | |
 |---|---|
-| CPU and memory | One container on the existing host, capped at 0.5 CPU and 256 MB; expected a few percent of one CPU and under 150 MB (measured on LXC 800 before the go, and the number here corrected) |
+| CPU and memory | One container on the demo host, capped at 0.5 CPU and 256 MB; expected a few percent of one CPU and under 150 MB (measured on LXC 800 before the go, and the number here corrected). Production's share: the API serving six controllers, about what one small site costs |
 | Database | About 3,000 events a day, ~3 MB a day, kept 45 days: ~150 MB at most, in the nightly backup (cents of B2) |
-| Bandwidth | None outside the host: the container talks to the API on the host's own network |
+| Bandwidth | Six controllers' long-polls and events, two intercoms' hourly settings: an estimated 0.5 GB a month each way. The first history upload is a one-off of about 50 MB |
 | B2 / media | None (PhotonEntry stores no media) |
-| Total | **Under $1 a month**, on the existing host |
+| Total | **Under $1 a month** for PhotonEntry, plus its share of the demo host (the host's price is in the one rollout go) |
 
 ## 6. Decisions
 
-- **Connor's:** only the go for the rollout, which for Entry is the same go as GATE P.
+- **Connor's:** only the go for the rollout. For Entry that is the same go as GATE P, together with the demo host the operator brings to him for every product.
 - **The operator's (raised by id1):** whether any demo login may open (simulated) doors from the app, and which one; until then `--link-viewer` stays off.
 - **Settled without him:** Vox, Guard and Console links (v1, d2, d3).

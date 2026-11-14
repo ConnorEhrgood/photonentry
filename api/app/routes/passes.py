@@ -96,6 +96,7 @@ def issue(site_id: uuid.UUID, body: PassIn, ctx: Ctx = Depends(tenant_ctx), db: 
         secrets_ = passes.secret_values(s, p)
         group = s.get(AccessGroup, p.group_id).name
         s.commit()
+        send = mail.for_tenant(s, ctx.tenant_id, send)          # the demo organization: never mailed
         if email:
             body_text = (f"{ctx.who.name or 'Your host'} made you a pass for {site.name}{f', {site.address}' if site.address else ''}.\n\n"
                          f"From {p.valid_from:%a %b %d, %Y %H:%M} to {p.valid_to:%a %b %d, %Y %H:%M} (UTC).\n\nYour pass: {link(token)}\n")

@@ -105,9 +105,10 @@ def provision_url(token: str) -> str:
     return f"{settings.provision_url.rstrip('/')}/provision/v1/{token}/"
 
 
-def view(db: Session, i: Intercom, doors: Dict[uuid.UUID, Door]) -> Dict[str, Any]:
+def view(db: Session, i: Intercom, doors: Dict[uuid.UUID, Door], staff: bool = False) -> Dict[str, Any]:
+    """`simulated` (the demo's intercoms) only for Photon staff."""
     door = doors.get(i.door_id)
-    return {"id": str(i.id), "name": i.name, "door_id": str(i.door_id), "door": door.name if door else "", "model": i.model,
+    return {**({"simulated": i.simulated} if staff else {}), "id": str(i.id), "name": i.name, "door_id": str(i.door_id), "door": door.name if door else "", "model": i.model,
             "mac": ":".join(i.mac[n:n + 2] for n in range(0, 12, 2)), "relay_address": i.relay_address, "relay_target": relay_target(db, i),
             "sip_server": i.sip_server, "sip_port": i.sip_port, "sip_transport": i.sip_transport, "sip_user": i.sip_user,
             "sip_password_set": bool(i.sip_password_sealed), "sip_outbound_proxy": i.sip_outbound_proxy, "vox_station_id": i.vox_station_id,
@@ -157,7 +158,7 @@ def _flush(db: Session) -> None:
 def list_intercoms(site_id: uuid.UUID, ctx: Ctx = Depends(tenant_ctx), db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     site = site_of(db, ctx, site_id, MANAGE)
     doors = _doors(db, site)
-    return [view(db, i, doors) for i in db.execute(select(Intercom).where(Intercom.site_id == site.id).order_by(Intercom.name)).scalars()]
+    return [view(db, i, doors, ctx.who.is_platform_admin) for i in db.execute(select(Intercom).where(Intercom.site_id == site.id).order_by(Intercom.name)).scalars()]
 
 
 @router.post("/intercoms", status_code=201)
@@ -179,7 +180,7 @@ def add_intercom(site_id: uuid.UUID, body: IntercomIn, ctx: Ctx = Depends(tenant
     _flush(db)
     log(db, ctx, "intercom.add", site_id=site.id, target_type="intercom", target_id=i.id, name=i.name, mac=i.mac, model=i.model)
     db.commit()
-    return view(db, i, doors)
+    return view(db, i, doors, ctx.who.is_platform_admin)
 
 
 @router.patch("/intercoms/{intercom_id}")
@@ -212,7 +213,7 @@ def patch_intercom(site_id: uuid.UUID, intercom_id: uuid.UUID, body: IntercomPat
         shown["sip_password"] = "changed"
     log(db, ctx, "intercom.change", site_id=site.id, target_type="intercom", target_id=i.id, **shown)
     db.commit()
-    return view(db, i, doors)
+    return view(db, i, doors, ctx.who.is_platform_admin)
 
 
 @router.delete("/intercoms/{intercom_id}", status_code=204)

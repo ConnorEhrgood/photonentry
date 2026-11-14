@@ -72,6 +72,7 @@ def notify_lockdowns(db: Session, send: mail.Sender, now: datetime) -> int:
     due = db.execute(select(Lockdown).where((Lockdown.start_notified_at.is_(None)) |
                                             (Lockdown.ended_at.is_not(None) & Lockdown.end_notified_at.is_(None)))).scalars().all()
     for lk in due:
+        to = mail.for_tenant(db, lk.tenant_id, send)          # the demo organization: logged, never sent
         for ending in (False, True):
             if ending and lk.ended_at is None:
                 continue
@@ -82,7 +83,7 @@ def notify_lockdowns(db: Session, send: mail.Sender, now: datetime) -> int:
                 result: Optional[bool] = True                       # too late to be useful: dropped
                 log.warning("lockdown %s: the %s notice is over an hour old; not sent", lk.id, "end" if ending else "start")
             else:
-                result = _send_all(db, lk, ending, send, now)
+                result = _send_all(db, lk, ending, to, now)
             if result is False:
                 continue                                            # the mail service failed: the next pass tries again
             if ending:

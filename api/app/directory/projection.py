@@ -86,6 +86,7 @@ class DbProjection(Projection):
         row.slug, row.former_slugs = doc.get("slug", ""), sorted(doc.get("former_slugs") or [])     # absent from a directory before 2026-11-13
         row.partner_id = _uuid(doc["partner_id"]) if doc.get("partner_id") else None
         row.products = sorted(doc.get("products") or [])
+        row.demo = bool(doc.get("demo"))                     # the demo organization (photon-suite DEMO.md); absent before 2026-11-14: false
         # An archived organization is not ours to serve: its access is kept but the tenant is "removed" like one that lost its entitlement.
         row.status = {"active": "active", "suspended": "suspended"}.get(doc["status"], "removed")
         self.db.flush()

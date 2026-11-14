@@ -40,8 +40,9 @@ class ControllerPatch(BaseModel):
     in_service: Optional[bool] = None
 
 
-def view(c: Controller, latest: Optional[int]) -> Dict[str, Any]:
-    return {"id": str(c.id), "site_id": str(c.site_id), "name": c.name, "state": c.state, "device": c.device, "inventory": c.inventory,
+def view(c: Controller, latest: Optional[int], staff: bool = False) -> Dict[str, Any]:
+    """`simulated` (the demo's controllers) only for Photon staff: a prospect looking at the demo sees a controller like any other."""
+    return {**({"simulated": c.simulated} if staff else {}), "id": str(c.id), "site_id": str(c.site_id), "name": c.name, "state": c.state, "device": c.device, "inventory": c.inventory,
             "settings": {"latest": latest or 0, "applied": c.applied_version, "error": c.apply_error,
                          "current": (latest or 0) == c.applied_version},
             "last_seen": c.last_seen.isoformat() if c.last_seen else None, "health": c.health}
@@ -55,7 +56,7 @@ def _latest(db: Session, controller_id: uuid.UUID) -> Optional[int]:
 def list_controllers(ctx: Ctx = Depends(require("entry.view")), db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     sites = {s.id for s in visible_sites(db, ctx)}
     rows = db.execute(select(Controller).where(Controller.tenant_id == ctx.tenant_id).order_by(Controller.name)).scalars().all()
-    return [view(c, _latest(db, c.id)) for c in rows if c.site_id in sites]
+    return [view(c, _latest(db, c.id), ctx.who.is_platform_admin) for c in rows if c.site_id in sites]
 
 
 @router.post("/controllers/claim", status_code=201)
@@ -72,7 +73,7 @@ def claim(body: ClaimIn, ctx: Ctx = Depends(tenant_ctx), db: Session = Depends(g
     log(db, ctx, "controller.claim", site_id=site.id, target_type="controller", target_id=c.id, model=c.device.get("model", ""),
         serial=c.device.get("serial", ""))
     db.commit()
-    return view(c, None)
+    return view(c, None, ctx.who.is_platform_admin)
 
 
 def _controller(db: Session, ctx: Ctx, controller_id: uuid.UUID, capability: str) -> Controller:
@@ -86,7 +87,7 @@ def _controller(db: Session, ctx: Ctx, controller_id: uuid.UUID, capability: str
 @router.get("/controllers/{controller_id}")
 def get_controller(controller_id: uuid.UUID, ctx: Ctx = Depends(tenant_ctx), db: Session = Depends(get_db)) -> Dict[str, Any]:
     c = _controller(db, ctx, controller_id, "entry.view")
-    return view(c, _latest(db, c.id))
+    return view(c, _latest(db, c.id), ctx.who.is_platform_admin)
 
 
 @router.patch("/controllers/{controller_id}")
@@ -104,4 +105,4 @@ def patch_controller(controller_id: uuid.UUID, body: ControllerPatch, ctx: Ctx =
     if body.name is not None:
         log(db, ctx, "controller.rename", site_id=c.site_id, target_type="controller", target_id=c.id, name=body.name)
     db.commit()
-    return view(c, _latest(db, c.id))
+    return view(c, _latest(db, c.id), ctx.who.is_platform_admin)
