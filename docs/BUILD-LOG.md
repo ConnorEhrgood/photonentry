@@ -498,3 +498,38 @@ address. A role description, bulk invites and a prefilled invite link are id1's 
 
 **Verified:** the unlock modules at 100% branch coverage (a door user end to end, what opens when and why not, lockdown, commissioning,
 suspension, ambiguous emails, the link rules, the limit, every role), and the web tests; screenshot of My doors at the three sizes, looked at.
+
+## 2026-11-14: the demo organization (photon-suite DEMO.md; docs/DEMO.md)
+
+Connor asked for one demo organization with every product simulated (photon-suite DEMO.md 4ffd90a, be6f221). PhotonEntry's plan is
+docs/DEMO.md. **Nothing is in production:** Entry's demo rides with GATE P and Connor's one rollout go. Coordination:
+- **id1:** the organization and sites under fixed IDs, the `demo` flag (photonid 632e879; the directory client re-vendored).
+- **The operator:** the simulators run on the one demo simulator host, never a production host; site slugs `demo-*`; no demo login opens doors.
+
+**Built:**
+- **Migration 0014:** `tenant.demo` (from the directory), `controller.simulated` and `intercom.simulated` (set by the seed; staff alone see them,
+  and the web app shows "Simulated" to them).
+- **No email for a demo organization** (`mail.for_tenant`): lockdown notices and visitors' passes are logged, never sent.
+- **The worker** keeps 45 days of a demo organization's events.
+- **The seed** (`app/demo`, `python -m app.demo seed|remove|status`, the stack's one-shot `demo` service, as the owner):
+  - claims six controllers;
+  - applies the office, gate and multifamily templates with renamed doors;
+  - adds 134 fictional people with cards and PINs (one expired, one suspended), two intercoms, the visitors' group and two passes;
+  - signs every door off (WV with a fictional DEMO license);
+  - publishes, and waits until every controller runs its settings.
+  It goes through the routes' own functions, as "Demo seed". It removes any earlier demo first, refuses an organization not marked demo, and `remove` deletes only the demo's PhotonEntry rows.
+- **The simulators** (`sim/demo_sim`, `deploy/demo/`, compose project `photonentry-demo`, 0.5 CPU and 256 MB):
+  - **Controllers:** six Axis simulators on the real clock, each running the real entry-link, which dials the public link.
+  - **Intercoms:** two Akuvox stand-ins that fetch their settings from the provisioning server and use its action URLs and web relay.
+  - **The driver:** each site's day from a seed per site and day. Office arrivals, lunch and the evening cleaners at hq; early shifts, the gate's schedule, early drivers and a propped dock door at the warehouse; residents, couriers with PINs, the gym's hours and the package room at the apartments. Denials, forced doors and calls come on top.
+  - **History:** 30 days written through the controllers' own logs, a day at a time while entry-link reads them.
+  - **Live:** remote unlocks are walked through. Restarts keep each controller's state.
+- `scripts/demo.sh build|seed|reset|remove|status <sim> <entry>`: the claim codes go to the seed, and its roster pipes straight back to the simulators.
+
+**Verified:**
+- **The seed:** run twice gives the same demo; refused without the flag; remove takes only the demo; no mail with Postmark set; "Simulated" for staff only; nobody linked.
+- **The simulators:** each site's days, the history, restart and intercom units.
+- **End to end on Postgres:** six real entry-links claimed by the seed, two days of history arriving exactly once, then live, read back through the API: a manager's card, a forced door, and the lobby intercom fetching its settings, ringing and opening the door.
+- **Memory on the runner:** about 80 MB for the simulators with full logs, and 1.4 MB per entry-link.
+
+**Not yet:** the Docker run on LXC 800, which waits for it to have memory (the operator).

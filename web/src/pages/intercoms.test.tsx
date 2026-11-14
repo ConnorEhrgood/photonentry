@@ -120,6 +120,11 @@ describe('Intercoms', () => {
     expect(screen.getByLabelText('Server')).toBeInTheDocument()
   })
 
+  it('a simulated intercom (the demo\'s) says so to Photon staff', async () => {
+    app({ [`GET ${S}/intercoms`]: [ic({ simulated: true })] })
+    expect(await screen.findByText('Simulated')).toBeInTheDocument()
+  })
+
   it('operators do not see intercoms', async () => {
     app({}, meWith(OPERATOR))
     expect(await screen.findByText('Main entrance')).toBeInTheDocument()

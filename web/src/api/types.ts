@@ -43,6 +43,8 @@ export interface Controller {
   settings: { latest: number; applied: number; error: string; current: boolean }
   last_seen: string | null
   health: { uptime_s?: number; queued_events?: number; clock?: string }
+  /** The demo's simulated controllers (docs/DEMO.md); sent to Photon staff only. */
+  simulated?: boolean
 }
 
 export interface Door {
@@ -157,6 +159,8 @@ export interface Intercom {
   sip_synced_at: string | null
   last_fetch_at: string | null
   last_fetch_ip: string
+  /** The demo's simulated intercoms (docs/DEMO.md); sent to Photon staff only. */
+  simulated?: boolean
 }
 
 export interface IntercomSetup {

@@ -1,1 +1,1 @@
-Vendored from photonid/directory/client at commit d707a4c (last change to the client: f186d54, organizations carry `slug` and `former_slugs`), 2026-11-14. Do not edit: re-copy from photonid. SOURCE.sha256 is checked by tests/unit/test_vendored.py.
+Vendored from photonid/directory/client at commit 632e879 (last change to the client: 632e879, organizations carry `demo`), 2026-11-14. Do not edit: re-copy from photonid. SOURCE.sha256 is checked by tests/unit/test_vendored.py.

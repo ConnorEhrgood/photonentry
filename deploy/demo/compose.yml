@@ -1,0 +1,37 @@
+# The demo's simulators, on the demo simulator host only (docs/DEMO.md; the operator's decision 2026-11-14): their own compose project, labeled
+# and capped, with no port published. They reach PhotonEntry only over its public names, as a site's controllers and intercoms do.
+#   scripts/demo.sh build <sim>    builds the image on that host from the pushed commit
+#   scripts/demo.sh seed <sim> <entry>
+name: photonentry-demo
+
+services:
+  sim:
+    image: photonentry-demo:${BUILD_SHA:?demo.sh sets BUILD_SHA}
+    build: { context: ../.., dockerfile: deploy/demo/Dockerfile, args: { BUILD_SHA: "${BUILD_SHA}" } }
+    restart: unless-stopped
+    labels: { com.photonind.demo: "true", com.photonind.product: "entry" }
+    cpus: 0.5
+    mem_limit: 256m
+    memswap_limit: 256m
+    pids_limit: 128
+    environment:
+      DEMO_CLOUD: ${DEMO_CLOUD:-https://link.entry.photonind.com}
+      DEMO_PROVISION: ${DEMO_PROVISION:-https://prov.entry.photonind.com}
+    volumes:
+      - state:/state
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys; sys.exit(0 if os.path.exists('/state/claims.json') else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  state:

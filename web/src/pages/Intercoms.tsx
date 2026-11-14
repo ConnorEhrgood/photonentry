@@ -45,7 +45,7 @@ export function IntercomsSection({ base, doors }: { base: string; doors: Door[] 
             <tbody>
               {list.data.map((i) => (
                 <tr key={i.id}>
-                  <td className="pe-who" data-label="Intercom"><strong>{i.name}</strong><span className="ph-hint"> {i.mac}</span></td>
+                  <td className="pe-who" data-label="Intercom"><strong>{i.name}</strong>{i.simulated && <> <StatusBadge tone="info">Simulated</StatusBadge></>}<span className="ph-hint"> {i.mac}</span></td>
                   <td data-label="Door">{i.door}</td>
                   <td data-label="Model">Akuvox {i.model}</td>
                   <td data-label="Settings">{fetched(i)}{!i.relay_target && <span className="ph-hint"> The controller has not said where the intercom reaches it.</span>}</td>

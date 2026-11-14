@@ -55,6 +55,25 @@ services:
     <<: *hardened
     logging: *logging
 
+  # The demo organization's seed (docs/DEMO.md), one-shot and only on request (`scripts/demo.sh`): `seed` reads the simulators' claim codes on
+  # stdin and writes their roster to stdout. As the owner, like migrate, so the API's and worker's roles get no new rights.
+  demo:
+    image: photonentry-api:${BUILD_SHA:?deploy.sh sets BUILD_SHA}
+    profiles: [demo]
+    restart: "no"
+    entrypoint: ["python", "-m", "app.demo"]
+    env_file: .env
+    environment:
+      MIGRATE_DATABASE_URL: *owner-db-url
+      DATABASE_URL: *app-db-url
+      SYSTEM_DATABASE_URL: *system-db-url
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+    depends_on:
+      db:
+        condition: service_healthy
+    <<: *hardened
+    logging: *logging
+
   api:
     image: photonentry-api:${BUILD_SHA:?deploy.sh sets BUILD_SHA}
     restart: unless-stopped

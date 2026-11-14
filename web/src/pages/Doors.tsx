@@ -55,7 +55,7 @@ export function OverviewPage() {
                 const st = controllerState(c)
                 return (
                   <tr key={c.id} className={`ph-edge ph-edge-${st.tone}`}>
-                    <td className="pe-who" data-label="Controller"><strong>{c.name || c.device.model}</strong><br /><span className="ph-hint">{c.device.model} {c.device.serial}</span></td>
+                    <td className="pe-who" data-label="Controller"><strong>{c.name || c.device.model}</strong>{c.simulated && <> <StatusBadge tone="info">Simulated</StatusBadge></>}<br /><span className="ph-hint">{c.device.model} {c.device.serial}</span></td>
                     <td data-label="State"><StatusBadge tone={st.tone}>{st.text}</StatusBadge></td>
                     <td data-label="Doors">{c.inventory?.doors.length ?? 0}</td>
                     <td data-label="Settings">{c.settings.latest ? `version ${c.settings.applied} of ${c.settings.latest}` : 'none yet'}{c.settings.error && <><br /><span className="ph-error">{c.settings.error}</span></>}</td>

@@ -39,10 +39,11 @@ class FakeDirectory:
     # ---- building the world ----
 
     def add_org(self, name: str = "Cedar Works", id: Optional[str] = None, partner_id: Optional[str] = None, region: str = "us-east", plan: str = "standard",
-                status: str = "active", products: Optional[list] = None, slug: Optional[str] = None, former_slugs: Optional[list] = None) -> str:
+                status: str = "active", products: Optional[list] = None, slug: Optional[str] = None, former_slugs: Optional[list] = None,
+                demo: bool = False) -> str:
         extra = {"products": products} if products is not None else {}
         extra.update({k: v for k, v in (("slug", slug), ("former_slugs", former_slugs)) if v is not None})
-        doc = self.ref.organization(id=id or _id(), name=name, region=region, partner_id=partner_id, plan_key=plan, status=status, **extra)
+        doc = self.ref.organization(id=id or _id(), name=name, region=region, partner_id=partner_id, plan_key=plan, status=status, demo=demo, **extra)
         self.orgs[doc["id"]] = doc
         return doc["id"]
 

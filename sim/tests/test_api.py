@@ -104,8 +104,8 @@ def test_event_log_is_read_by_row_id(sim):
     assert sim.call("eventlogger", "axlog:FetchEvents", {"Descending": True, "Limit": 1})["Event"][0]["rowid"] == denied["rowid"]
 
 
-def test_the_log_keeps_its_capacity(monkeypatch, sim):
-    monkeypatch.setattr("axis_sim.device.EVENT_LOG_CAPACITY", 10)
+def test_the_log_keeps_its_capacity(sim):
+    sim.device.log_capacity = 10                       # 30,000 on a real controller (EVENT_LOG_CAPACITY); the demo keeps fewer
     for _ in range(10):
         sim.card(R1IN, "00")
     assert len(sim.device.log) == 10 and sim.device.log[0]["rowid"] > 1

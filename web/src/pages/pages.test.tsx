@@ -117,9 +117,15 @@ describe('the daily pages', () => {
       [`GET ${T}/sites/s1/doors`]: DOORS,
     })
     expect(await screen.findByText('Never connected')).toBeInTheDocument()
+    expect(screen.queryByText('Simulated')).not.toBeInTheDocument()
     expect(screen.getByText('Settings refused')).toBeInTheDocument()
     expect(screen.getByText('capacity')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Set up this site' })).toHaveAttribute('href', '/org/t1/setup?site=s1')
+  })
+
+  it('overview: Photon staff see which controllers are the demo\'s simulated ones', async () => {
+    app('/overview', { [`GET ${T}/controllers`]: [ctl({ simulated: true }), ctl({ id: 'c2', name: 'Back', simulated: false })], [`GET ${T}/sites/s1/doors`]: DOORS })
+    expect(await screen.findAllByText('Simulated')).toHaveLength(1)
   })
 
   it('doors: open one now; lock some doors down with a reason, see each door, end it with a reason', async () => {

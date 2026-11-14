@@ -11,17 +11,17 @@ The directory's fixed IDs (id1, 2026-11-14), the same in development and product
 | | ID |
 |---|---|
 | Organization Photon Demo, `demo` | `3560c835-5885-442d-bf55-6e250e4b5190` |
-| `hq` Headquarters, Pittsburgh PA | `72a17302-e998-4a17-9459-dbc61c4ea410` |
-| `warehouse` Distribution Center, Washington PA | `736b1e29-7f84-40a8-b06b-1495902f7d2f` |
-| `apartments` Riverside Apartments, Wheeling WV | `e8088684-45b6-45f3-aebc-5e0efc638a3c` |
+| `demo-hq` Headquarters, Pittsburgh PA | `72a17302-e998-4a17-9459-dbc61c4ea410` |
+| `demo-warehouse` Distribution Center, Washington PA | `736b1e29-7f84-40a8-b06b-1495902f7d2f` |
+| `demo-apartments` Riverside Apartments, Wheeling WV | `e8088684-45b6-45f3-aebc-5e0efc638a3c` |
 
-All three sites are `America/New_York`. `billboards` has no Entry part.
+All three sites are `America/New_York`. `demo-billboards` has no Entry part. (Slugs as in photon-suite DEMO.md be6f221; below, hq, warehouse and apartments are short for them.)
 
 | Site | Template | Controllers (simulated) | Doors | Intercom |
 |---|---|---|---|---|
-| `hq` | Office | `HQ lobby` A1610, `HQ upstairs` A1610 | Main entrance, Staff entrance (lobby); Executive suite, Server room (upstairs) | `Front intercom` at the main entrance (S532) |
-| `warehouse` | Gate + Office | `Yard gate` A1210, `Warehouse office` A1610 | Vehicle gate (open in business hours); Office entrance, Dock entrance | none |
-| `apartments` | Multifamily | `Lobby` A1610, `Back of house` A1610 | Lobby entrance, Rear entrance (lobby); Package room, Fitness center (back of house) | `Lobby intercom` at the lobby entrance (E12) |
+| `demo-hq` | Office | `HQ lobby` A1610, `HQ upstairs` A1610 | Main entrance, Staff entrance (lobby); Executive suite, Server room (upstairs) | `Front intercom` at the main entrance (S532) |
+| `demo-warehouse` | Gate + Office | `Yard gate` A1210, `Warehouse office` A1610 | Vehicle gate (open in business hours); Office entrance, Dock entrance | none |
+| `demo-apartments` | Multifamily | `Lobby` A1610, `Back of house` A1610 | Lobby entrance, Rear entrance (lobby); Package room, Fitness center (back of house) | `Lobby intercom` at the lobby entrance (E12) |
 
 - **People** (all fictional; names from a fixed list, email addresses on `example.com`, no phone numbers):
   - **hq:** 36 staff, 4 managers, 2 IT and 3 cleaning crew.
@@ -42,11 +42,7 @@ All three sites are `America/New_York`. `billboards` has no Entry part.
   - **Intercom calls:** a call at hq's front about every hour in business hours, and at the apartments' lobby every 30 to 60 minutes from 8 to 21. Most end in an unlock from the intercom; a few end unanswered.
   - **Actions from the app:** unlocks, lockdowns and door modes go through the real path (cloud → entry-link → controller) and show as events. After an unlock, the simulated door is opened and closed, as a person walking through would.
 - **History back-filled:** 30 days of the same pattern. On day one the event list, the dashboards and the intercom pages look lived-in.
-- **Phone unlock (decision 25), off by default:**
-  - `seed --link-viewer` links a fictional resident, "Quinn Rivera", to the one person who holds the viewer role on the demo organization in PhotonEntry's copy of the directory; no address is written anywhere. It refuses if there are several.
-  - That person can then open the lobby, package room and gym from **My doors**, on simulated controllers, and each open shows as an event.
-  - It waits for the operator's answer: id1 notes that opening doors goes beyond "viewer", and that the store review account is m1's and may not be the QA account.
-  - A person with no linked cardholder (a prospect login, say) opens nothing: My doors shows "not linked".
+- **Phone unlock (decision 25) is not part of the demo** (the operator, 2026-11-14): no demo login opens doors. The QA account stays a viewer with no cardholder record linked, so its My doors says "not linked". The store-review account is m1's, later.
 
 ## 2. How it is simulated (the real protocols, nothing real touched)
 
@@ -79,7 +75,6 @@ The intercoms' events in the history (call started, opened from the intercom, ca
   - claims the six controllers by their claim codes, to their sites;
   - applies the templates;
   - creates people, cards, passes, intercoms and commissioning records;
-  - with `--link-viewer` only, links the viewer to Quinn Rivera;
   - publishes.
 - `remove` takes it all out. It deletes every row of the demo organization in PhotonEntry and disables its controllers; the directory's organization and sites stay, as they are id1's.
 
@@ -124,12 +119,12 @@ Each is a link an admin turns on in Entry's Integrations page.
 
 - **Tests in the suite:**
   - **The history and driver:** each site's day, the denials and alarms, the intercom calls; the history stays under the log's limit.
-  - **seed and remove:** run twice gives the same result; refused without the flag; nothing is left after remove.
+  - **seed and remove:** run twice gives the same result; refused without the flag; nothing is left after remove; no cardholder is linked to anyone.
   - **No mail for a demo organization,** even with a Postmark token configured.
   - **Simulated badges for staff only.**
   - **An end-to-end run** on the runner: the real entry-link binaries against the simulators with history, a card at a reader, a forced door, and an intercom call that ends in an unlock. Everything arrives as events, in order, exactly once.
 - **The dev copy:** seeded with the directory's IDs above (the organization row as the directory's sync writes it, `demo: true`).
-- **A full run on LXC 800, as production would run it:**
+- **A full run on LXC 800, as production would run it** (waits: LXC 800 is out of memory, the operator 2026-11-14; then one suite at a time, and the stacks taken down after):
   - the PhotonEntry stack and the `photonentry-demo` project in Docker, as two separate projects; the simulators reach the stack only by its published address, standing in for the public names;
   - `demo.sh seed`, then a few hours live;
   - `demo.sh reset`, then `demo.sh remove`;
@@ -145,7 +140,6 @@ Each is a link an admin turns on in Entry's Integrations page.
    - the six controllers show online with their settings applied;
    - the event list fills with 30 days of history;
    - a card, a forced door and an intercom unlock appear within the hour.
-5. **Only if the operator says so:** `seed --link-viewer`, and tell m1 which account opens doors.
 
 **Rollback:**
 
@@ -157,7 +151,7 @@ Each is a link an admin turns on in Entry's Integrations page.
 
 | | |
 |---|---|
-| CPU and memory | One container on the demo host, capped at 0.5 CPU and 256 MB; expected a few percent of one CPU and under 150 MB (measured on LXC 800 before the go, and the number here corrected). Production's share: the API serving six controllers, about what one small site costs |
+| CPU and memory | One container on the demo host, capped at 0.5 CPU and 256 MB. Measured on the runner (2026-11-14): the simulators' process about 80 MB with every controller's log full (3,000 rows each), 30 days of history in about a second of CPU, entry-link 1.4 MB each idle. Measured again in Docker on LXC 800 when it has memory to spare. Production's share: the API serving six controllers, about what one small site costs |
 | Database | About 3,000 events a day, ~3 MB a day, kept 45 days: ~150 MB at most, in the nightly backup (cents of B2) |
 | Bandwidth | Six controllers' long-polls and events, two intercoms' hourly settings: an estimated 0.5 GB a month each way. The first history upload is a one-off of about 50 MB |
 | B2 / media | None (PhotonEntry stores no media) |
@@ -166,5 +160,5 @@ Each is a link an admin turns on in Entry's Integrations page.
 ## 6. Decisions
 
 - **Connor's:** only the go for the rollout. For Entry that is the same go as GATE P, together with the demo host the operator brings to him for every product.
-- **The operator's (raised by id1):** whether any demo login may open (simulated) doors from the app, and which one; until then `--link-viewer` stays off.
+- **Answered by the operator (2026-11-14):** no demo login opens doors; the QA account stays a viewer.
 - **Settled without him:** Vox, Guard and Console links (v1, d2, d3).

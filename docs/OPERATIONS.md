@@ -43,6 +43,9 @@ production configuration (`app/config.py production_safe`).
 the template's values are production's. (On 2026-11-14 a check stack on LXC 800 kept the template's `DIRECTORY_URL` and its worker asked the
 production directory a few times with made-up credentials; the directory refused them. Nothing was changed; it is why this line is here.)
 
+**The demo organization** (docs/DEMO.md): its simulators run on the demo simulator host, never here; on this host only the stack's one-shot
+`demo` service (`--profile demo`), run by `scripts/demo.sh`. `scripts/demo.sh remove <sim> prod` takes the demo out entirely.
+
 ## 4. Backups and restore
 
 - Tier **High** (OPERATIONS.md §2.7): who may open which door, every door event and the audit trail. Nightly encrypted dump through the host's

@@ -85,3 +85,10 @@ the tests claim through the store (`store.claim`).
   - **The cloud** stores events exactly once, in order, and acknowledges with `ack_seq`.
   - **After a crash,** duplicates are possible and losses are not. `ref` (the controller's event token) identifies a duplicate.
 - **Commands** carry `expires_at`. `entry-link` refuses one that arrives late and remembers the last 64 ids it carried out.
+
+## The demo organization (docs/DEMO.md)
+
+- `app/demo/` (the seed: `python -m app.demo seed|remove|status`, as the database owner), `sim/demo_sim/` (the simulators: `python -m demo_sim run`
+  with `DEMO_STATE`, `DEMO_CLOUD`, `DEMO_PROVISION`, `DEMO_ENTRY_LINK`), `deploy/demo/`, `scripts/demo.sh`.
+- Tests: `api/tests/db/test_demo.py`, `api/tests/db/test_demo_e2e.py` (the real entry-links; ports 18701-18706 and 18801-18806), `sim/tests/test_demo_sim.py`.
+- The demo's IDs are fixed (the directory's, `app/demo/__init__.py`); its people are generated from a fixed seed, all fictional.

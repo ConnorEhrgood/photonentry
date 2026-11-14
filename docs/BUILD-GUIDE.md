@@ -25,6 +25,7 @@ Work through the steps in order. Stop at every **GATE** and wait for Connor. Ite
 | Suite home | Done 2026-11-14, not deployed (BUILD-LOG.md): the suite's addresses, the app switcher, `GET /v1/summary` (photonid docs/HOME-BRIEFS.md) |
 | Step 6 | Lockdown, commissioning and visitors' passes done 2026-11-14 (BUILD-LOG.md); phone unlock, the QR code and holding back uncommissioned doors wait for Connor's answers; responders and the panic input for the bench |
 | Step 8 prep | Done 2026-11-14, not deployed: images, compose, the host Caddy's site file, `scripts/deploy.sh`, `/readyz`, JSON logs, docs/OPERATIONS.md (checked on LXC 800) |
+| Demo organization | Built and tested 2026-11-14, not deployed (docs/DEMO.md, BUILD-LOG.md): the seed, the simulators for the demo host, `scripts/demo.sh`; rides with GATE P and Connor's rollout go |
 | Step 5 | Done 2026-11-14 (BUILD-LOG.md): intercoms, the Akuvox provisioning server, entry-link's endpoint for the web relay and action URLs; PhotonVox door stations and call records on PhotonEntry's side, against a fake of the proposed contract (docs/VOX.md: PhotonVox's side is v1's, with Connor's go-ahead) |
 
 **Dev ports** (they collide with no other agent): API and link **8133**, simulator **8134**, entry-link's intercom endpoint **8135** (8742 on a controller), web **5193**.

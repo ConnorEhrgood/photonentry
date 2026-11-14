@@ -92,6 +92,7 @@ class Device:
     tz: str = "America/New_York"
     clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc)
     lock: threading.RLock = field(default_factory=threading.RLock)
+    log_capacity: int = EVENT_LOG_CAPACITY               # the demo keeps fewer (memory); a real controller holds 30,000
 
     def __post_init__(self) -> None:
         self.uuid = f"5581ad80-95b0-11e0-b883-{self.mac}"
@@ -104,6 +105,7 @@ class Device:
         self._rowid = itertools.count(1)
         self.calls: List[str] = []
         self.offline = False                             # the test harness can make the device refuse every request
+        self.read_to = 0                                 # the highest RowID a reader has asked for rows after (the demo waits on it)
         self._factory()
 
     # -- tokens, time --------------------------------------------------------------------------------------------------------------------------
@@ -181,12 +183,44 @@ class Device:
             kv.append({"Key": f"topic{n}", "Value": part, "Tags": []})
         self.log.append({"rowid": next(self._rowid), "token": self.new_token(), "UUID": self.uuid,
                          "UtcTime": self.now_utc().strftime("%Y-%m-%dT%H:%M:%S.%fZ"), "KeyValues": kv, "Tags": []})
-        if len(self.log) > EVENT_LOG_CAPACITY:
-            del self.log[: len(self.log) - EVENT_LOG_CAPACITY]   # oldest dropped first, as a full log does
+        if len(self.log) > self.log_capacity:
+            del self.log[: len(self.log) - self.log_capacity]    # oldest dropped first, as a full log does
+
+    def record(self, topic: List[str], source: Dict[str, str], data: Dict[str, str]) -> None:
+        """Write an event into the log that the controller's own logic did not make. Only the demo's back-filled history uses it (docs/DEMO.md
+        §2): the intercoms' events of the past, which entry-link would have recorded itself. A real controller has no such call."""
+        self._emit(topic, source, data)
+
+    # -- persistence (the demo's simulators survive a restart; a real controller keeps all of this in flash) ------------------------------------
+
+    def snapshot(self) -> Dict[str, Any]:
+        """Everything a restart must keep: the stores, the doors' runtime state and the event log. JSON-safe."""
+        def t(v: Optional[datetime]) -> Optional[str]:
+            return v.isoformat() if v else None
+        return {"mac": self.mac, "doors": self.doors, "tz": self.tz, "store": self.store, "log": self.log[-self.log_capacity:],
+                "next_rowid": (self.log[-1]["rowid"] + 1) if self.log else 1,
+                "runtime": {d: {"base": r.base, "sticky": r.sticky, "accessed_until": t(r.accessed_until),
+                                "accessed_by": list(r.accessed_by) if r.accessed_by else None, "physical": r.physical, "alarm": r.alarm,
+                                "warning": r.warning, "opened_at": t(r.opened_at), "schedule_state": r.schedule_state}
+                            for d, r in self.runtime.items()}}
+
+    def restore(self, snap: Dict[str, Any]) -> None:
+        """Back to a snapshot of this same controller (refused for another one)."""
+        if snap["mac"] != self.mac or snap["doors"] != self.doors:
+            raise ValueError("a snapshot of another controller")
+        self.store, self.log = snap["store"], snap["log"][-self.log_capacity:]
+        self._rowid = itertools.count(snap["next_rowid"])
+        self.runtime = {d: DoorRuntime(base=r["base"], sticky=r["sticky"], accessed_until=_parse_time(r["accessed_until"] or ""),
+                                       accessed_by=tuple(r["accessed_by"]) if r["accessed_by"] else None, physical=r["physical"],
+                                       alarm=r["alarm"], warning=r["warning"], opened_at=_parse_time(r["opened_at"] or ""),
+                                       schedule_state=r["schedule_state"])
+                        for d, r in snap["runtime"].items()}
 
     def fetch_events(self, row_id: int = 0, limit: int = FETCH_LIMIT, filters: Optional[List[Dict[str, str]]] = None,
                      descending: bool = False) -> Tuple[List[Dict[str, Any]], bool]:
         limit = FETCH_LIMIT if limit is None or limit < 1 or limit > FETCH_LIMIT else limit
+        if not descending:
+            self.read_to = max(self.read_to, row_id)
         rows = list(reversed(self.log)) if descending else self.log
         if row_id:
             rows = [r for r in rows if (r["rowid"] < row_id if descending else r["rowid"] > row_id)]

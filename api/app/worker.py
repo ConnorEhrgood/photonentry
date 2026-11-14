@@ -2,7 +2,7 @@
 
 Now: keep the directory copy current (a periodic pull, so a lost notice delays a change and never loses it) and publish our role catalog to the
 directory; send the doors' events to PhotonGuard (app/guard.py); name who answered a door's call and keep the intercoms' SIP accounts as
-PhotonVox has them (app/vox.py, hourly). Later steps add visitor-pass mail and retention.
+PhotonVox has them (app/vox.py, hourly); keep the demo organization's events to 45 days (app/demo/keep.py, daily).
 """
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ from typing import Any, Callable
 from sqlalchemy import text
 
 from app import guard, mail, notify, obs, sync, vox
+from app.demo import keep
 from app.config import settings
 from app.db import SystemSession
 from app.deps import get_directory
@@ -25,6 +26,7 @@ log = logging.getLogger("photonentry.worker")
 TICK_S = 15
 PUBLISH_RETRY_S = 600
 VOX_SYNC_S = 3600
+DEMO_TRIM_S = 86400
 HEARTBEAT_FILE = os.environ.get("WORKER_HEARTBEAT_FILE", "/tmp/worker.ok")   # the container healthcheck reads its age
 
 
@@ -48,6 +50,11 @@ def tick(state: dict, clock: Callable[[], float] = time.monotonic) -> None:
     notified = run_job("lockdown mail", lambda db: notify.notify_lockdowns(db, mail.send, utcnow()))
     if notified:
         log.info("lockdown mail: %d notice(s)", notified)
+    if now - state.get("demo_trim", float("-inf")) >= DEMO_TRIM_S:
+        state["demo_trim"] = now
+        trimmed = run_job("demo trim", lambda db: keep.trim(db, utcnow()))
+        if trimmed:
+            log.info("demo: trimmed %d old event(s)", trimmed)
     sync_sip = now - state.get("vox_sync", float("-inf")) >= VOX_SYNC_S
     if sync_sip:
         state["vox_sync"] = now
