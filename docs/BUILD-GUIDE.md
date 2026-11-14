@@ -22,6 +22,7 @@ Work through the steps in order. Stop at every **GATE** and wait for Connor. Ite
 | Step 2 | Done 2026-11-13 (BUILD-LOG.md): database, directory, the integrator's API, the link on Postgres |
 | Step 3 | Done 2026-11-13 (BUILD-LOG.md): the web app on photon-ui and the shared sign-in; templates for offices, schools, multifamily and gates (Connor: all are likely clients). The commissioning record moved to Step 6 |
 | Step 4 | Done 2026-11-13 (BUILD-LOG.md): door events in PhotonEntry's words; to PhotonGuard (sent to Guard's documented ingest; Guard's own ingest is not built yet, so not tried against it); the PhotonConsole feed. Then (Connor, the same day): editing schedules, groups and holidays in the web app, done |
+| Suite home | Done 2026-11-14, not deployed (BUILD-LOG.md): the suite's addresses, the app switcher, `GET /v1/summary` (photonid docs/HOME-BRIEFS.md) |
 | Step 5 | Part 1 done 2026-11-14 (BUILD-LOG.md): intercoms, the Akuvox provisioning server, entry-link's endpoint for the web relay and action URLs. Part 2 (PhotonVox: door stations, call records) next |
 
 **Dev ports** (they collide with no other agent): API and link **8133**, simulator **8134**, entry-link's intercom endpoint **8135** (8742 on a controller), web **5193**.

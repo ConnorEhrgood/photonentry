@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from typing import FrozenSet, Optional
+from typing import Any, Dict, FrozenSet, Optional
 
 from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy import select
@@ -73,16 +73,23 @@ def _known(sub: str) -> Optional[Person]:
         return s.execute(select(Person).where(Person.sub == sub)).scalar_one_or_none()
 
 
-def current_person(
-    authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db),
-    verifier: TokenVerifier = Depends(get_verifier),
-    directory: Optional[DirectoryFactory] = Depends(get_directory),
-) -> Who:
+def _unauthorized() -> HTTPException:
+    return HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token", headers={"WWW-Authenticate": "Bearer"})
+
+
+def another_app(claims: Dict[str, Any]) -> bool:
+    """Was the token issued to another app than PhotonEntry's web client? PhotonID names the client in `client_id` (access tokens) or `azp`."""
+    client = claims.get("client_id") or claims.get("azp")
+    return bool(settings.oidc_web_client_id and client and client != settings.oidc_web_client_id)
+
+
+def _person(authorization: Optional[str], db: Session, verifier: TokenVerifier, directory: Optional[DirectoryFactory], any_app: bool) -> Who:
     try:
         claims = verifier.verify(_bearer(authorization))
     except TokenError:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token", headers={"WWW-Authenticate": "Bearer"})
+        raise _unauthorized()
+    if another_app(claims) and not any_app:
+        raise _unauthorized()
     sub = str(claims["sub"])
     person = _known(sub)
     if person is None:
@@ -102,6 +109,26 @@ def current_person(
     staff = person.is_platform_admin       # the directory says who Photon's staff are (photonid projection.py)
     rls.as_person(db, person.id, staff)
     return Who(person.id, sub, person.name, person.email, staff)
+
+
+def current_person(
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+    verifier: TokenVerifier = Depends(get_verifier),
+    directory: Optional[DirectoryFactory] = Depends(get_directory),
+) -> Who:
+    """The signed-in person, with a token PhotonEntry's own web client asked for."""
+    return _person(authorization, db, verifier, directory, any_app=False)
+
+
+def current_person_any_app(
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+    verifier: TokenVerifier = Depends(get_verifier),
+    directory: Optional[DirectoryFactory] = Depends(get_directory),
+) -> Who:
+    """The same, also with a token another suite app asked for (it still has to carry our audience). For GET /v1/summary only."""
+    return _person(authorization, db, verifier, directory, any_app=True)
 
 
 

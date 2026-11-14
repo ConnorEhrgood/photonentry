@@ -39,6 +39,8 @@ class Tenant(Base):
     __tablename__ = "tenant"
     id: Mapped[uuid.UUID] = mapped_column(UUIDT, primary_key=True)
     name: Mapped[str] = mapped_column(String(200))
+    slug: Mapped[str] = mapped_column(String(63), default="", index=True)            # its address in every product: /org/<slug>/ (the directory's)
+    former_slugs: Mapped[List[str]] = mapped_column(JSONB, default=list)            # slugs it had before, which redirect to /org/<slug>/
     partner_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUIDT)
     plan_key: Mapped[str] = mapped_column(String(60), default="")
     status: Mapped[str] = mapped_column(String(20), default="active")       # active | suspended | removed

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { Controller } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
-import { useTenant } from '../auth/TenantContext'
+import { orgKey, remember, useTenant } from '../auth/TenantContext'
 import { ErrorText, Loading, PageHeader, StatusBadge } from '../components/ui'
 import { useLoad } from '../lib/useLoad'
 import { controllerState } from './Doors'
@@ -9,7 +9,7 @@ import { controllerState } from './Doors'
 /** The integrator's first page: every customer of theirs, and whether any of its controllers needs someone. */
 export function CustomersPage() {
   const { api } = useAuth()
-  const { tenants, select } = useTenant()
+  const { tenants } = useTenant()
   const all = useLoad(async () => Promise.all(tenants.map(async (t) => {
     try { return { t, controllers: await api.get<Controller[]>(`/tenants/${t.id}/controllers`) } } catch { return { t, controllers: null } }
   })), [api, tenants])
@@ -29,7 +29,7 @@ export function CustomersPage() {
                   <td className="pe-who" data-label="Customer"><strong>{t.name}</strong>{t.status === 'suspended' && <> <StatusBadge tone="warning">Plan needs attention</StatusBadge></>}</td>
                   <td data-label="Controllers">{controllers === null ? 'Not available' : controllers.length}</td>
                   <td data-label="Attention">{bad ? <StatusBadge tone="error">{bad}</StatusBadge> : <StatusBadge tone="ok">None</StatusBadge>}</td>
-                  <td data-label=""><Link className="ph-btn ph-btn-secondary ph-btn-sm" to="/overview" onClick={() => select(t.id)}>Open</Link></td>
+                  <td data-label=""><Link className="ph-btn ph-btn-secondary ph-btn-sm" to={`/org/${orgKey(t)}/overview`} onClick={() => remember(t.id)}>Open</Link></td>
                 </tr>
               )
             })}

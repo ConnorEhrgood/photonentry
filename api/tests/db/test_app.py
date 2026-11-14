@@ -42,7 +42,8 @@ def test_logins_that_bypass_row_level_security_are_refused():
 
 def test_production_runs_the_start_up_check(monkeypatch):
     from types import SimpleNamespace
-    monkeypatch.setattr(main, "settings", SimpleNamespace(environment="production", production_safe=lambda: None, cors_list=[]))
+    monkeypatch.setattr(main, "settings", SimpleNamespace(environment="production", production_safe=lambda: None, cors_list=[],
+                                                        account_origin="https://account.photonind.com"))
     called = []
     monkeypatch.setattr(main, "refuse_logins_that_bypass_row_level_security", lambda a, b: called.append((a, b)))
     with TestClient(main.create_app(Link(store=MemoryStore()))):

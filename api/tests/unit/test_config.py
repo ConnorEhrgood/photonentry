@@ -5,7 +5,7 @@ from app.config import Settings
 GOOD = dict(environment="production", oidc_issuer="https://id.photonind.com", oidc_audience="photonentry", directory_url="https://api.account.photonind.com",
             directory_client_id="pdc_entry", directory_client_secret="s" * 40, directory_notice_secret="n" * 40,
             system_database_url="postgresql+psycopg://entry_system:x@db/photonentry", cors_origins="https://entry.photonind.com",
-            secrets_key="k" * 44, fingerprint_key="f" * 40)
+            secrets_key="k" * 44, fingerprint_key="f" * 40, oidc_web_client_id="399489273423724547")
 
 
 def test_a_good_production_configuration_is_safe():
@@ -29,6 +29,8 @@ def test_development_is_never_refused():
     ({"fingerprint_key": "short"}, "FINGERPRINT_KEY"),
     ({"cors_origins": ""}, "CORS_ORIGINS must list"),
     ({"cors_origins": "http://localhost:5193"}, "https://"),
+    ({"oidc_web_client_id": ""}, "OIDC_WEB_CLIENT_ID"),
+    ({"account_origin": "http://account.photonind.com"}, "ACCOUNT_ORIGIN"),
 ])
 def test_each_unsafe_production_setting_is_named(over, word):
     assert word in Settings(**{**GOOD, **over}).production_safe()

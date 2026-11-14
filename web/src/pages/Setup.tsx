@@ -283,7 +283,7 @@ function PeopleStep({ site, template, back, next, applied }: { site: Site; templ
 /** 5. Send it to the controllers, and watch them take it. */
 function PublishStep({ site, back }: { site: Site; back: () => void }) {
   const { api } = useAuth()
-  const { current } = useTenant()
+  const { current, path } = useTenant()
   const t = current!.id
   const [result, setResult] = useState<Published | null>(null)
   const [problems, setProblems] = useState<string[]>([])
@@ -327,7 +327,7 @@ function PublishStep({ site, back }: { site: Site; back: () => void }) {
       <div className="ph-actions">
         <button className="ph-btn ph-btn-ghost" onClick={back}>Back</button>
         {!result && <button className="ph-btn" onClick={() => void publish()}>Publish</button>}
-        {result && !pending && <Link className="ph-btn" to={`/doors?site=${site.id}`}>Done: see the doors</Link>}
+        {result && !pending && <Link className="ph-btn" to={path(`/doors?site=${site.id}`)}>Done: see the doors</Link>}
       </div>
     </section>
   )

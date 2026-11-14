@@ -16,6 +16,29 @@ from app.link.service import Link, router as link_router
 CORS_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 
 
+class SummaryCors:
+    """CORS for the account app's home dashboard on GET /v1/summary only (the web app's own origins are CORSMiddleware's). Plain ASGI: it answers the
+    preflight itself and adds the header to the answer; every other request passes through untouched."""
+
+    def __init__(self, app, path: str, origin: str) -> None:
+        self.app, self.path, self.origin = app, path, origin
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope["path"] != self.path or dict(scope["headers"]).get(b"origin", b"").decode() != self.origin:
+            return await self.app(scope, receive, send)
+        allow = [(b"access-control-allow-origin", self.origin.encode()), (b"vary", b"Origin")]
+        if scope["method"] == "OPTIONS":
+            await send({"type": "http.response.start", "status": 204, "headers": allow + [
+                (b"access-control-allow-methods", b"GET"), (b"access-control-allow-headers", b"Authorization"), (b"access-control-max-age", b"600")]})
+            return await send({"type": "http.response.body", "body": b""})
+
+        async def with_cors(message):
+            if message["type"] == "http.response.start":
+                message = {**message, "headers": list(message.get("headers", [])) + allow}
+            await send(message)
+        await self.app(scope, receive, with_cors)
+
+
 def create_app(link: Link, routes: bool = True) -> FastAPI:
     """`routes=False`: the link service alone (the Step 1 tests run it on the in-memory store, with no database)."""
     problem = settings.production_safe()
@@ -35,13 +58,14 @@ def create_app(link: Link, routes: bool = True) -> FastAPI:
         return app
 
     from app.db import engine, system_engine
-    from app.routes import actions, cardholders, config, controllers, directory_notify, integrations, intercoms, me, provision, tenants
-    for r in (me, tenants, directory_notify, controllers, config, cardholders, actions, integrations, intercoms, provision):
+    from app.routes import actions, cardholders, config, controllers, directory_notify, integrations, intercoms, me, provision, summary, tenants
+    for r in (me, tenants, directory_notify, controllers, config, cardholders, actions, integrations, intercoms, provision, summary):
         app.include_router(r.router)
     app.include_router(tenants.catalog_router)
     if settings.cors_list:
         app.add_middleware(CORSMiddleware, allow_origins=settings.cors_list, allow_methods=CORS_METHODS,
                            allow_headers=["Authorization", "Content-Type"], max_age=600)
+    app.add_middleware(SummaryCors, path=summary.PATH, origin=settings.account_origin)      # added last: outside CORSMiddleware, sees its preflight first
 
     @app.on_event("startup")
     def startup_checks() -> None:

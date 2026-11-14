@@ -15,12 +15,12 @@ function Hub({ title, tabs }: { title: string; tabs: { to: string; label: string
   )
 }
 
-/** The Settings tabs this person may use; they follow what the role can do. */
+/** The Settings tabs this person may use; they follow what the role can do. Relative: under /org/<slug>/settings/. */
 export function settingsTabs(can: (capability: string) => boolean): { to: string; label: string }[] {
   const tabs = []
-  if (can('entry.members.view')) tabs.push({ to: '/settings/team', label: 'Team' })
-  if (can('entry.config.manage')) tabs.push({ to: '/settings/guard', label: 'PhotonGuard' }, { to: '/settings/console', label: 'PhotonConsole' })
-  if (can('entry.audit.view')) tabs.push({ to: '/settings/audit', label: 'Audit trail' })
+  if (can('entry.members.view')) tabs.push({ to: 'team', label: 'Team' })
+  if (can('entry.config.manage')) tabs.push({ to: 'guard', label: 'PhotonGuard' }, { to: 'console', label: 'PhotonConsole' })
+  if (can('entry.audit.view')) tabs.push({ to: 'audit', label: 'Audit trail' })
   return tabs
 }
 

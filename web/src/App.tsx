@@ -1,8 +1,8 @@
-import { Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import logo from './assets/photon-logo.png'
 import { useAuth } from './auth/AuthContext'
 import { DevTokenPage } from './auth/DevTokenPage'
-import { TenantProvider, useTenant } from './auth/TenantContext'
+import { orgKey, TenantProvider, useTenant } from './auth/TenantContext'
 import { isIntegrator, Layout } from './components/Layout'
 import { AccessPage } from './pages/Access'
 import { AuditPage } from './pages/Audit'
@@ -48,16 +48,62 @@ function SignedOut() {
   return <SignedOutRoute auth={source.auth} logo={logo} />
 }
 
-/** Where "/" goes: the customer list for an integrator, the customer's overview for anyone else. */
+/** Where "/" goes: the customer list for an integrator, their organization's home for anyone else. `?organization=<id or slug>&site=<slug>`
+ *  (how other apps may link in) opens that organization and site. */
 export function Home() {
-  const { tenants } = useTenant()
-  return <Navigate to={isIntegrator(tenants) ? '/customers' : '/overview'} replace />
+  const { tenants, current } = useTenant()
+  const [params] = useSearchParams()
+  const asked = params.get('organization')
+  if (asked) {
+    const t = tenants.find((x) => x.id === asked || x.slug === asked || x.former_slugs?.includes(asked))
+    const site = params.get('site')
+    return <Navigate to={`/org/${t ? orgKey(t) : asked}/${site ? `site/${encodeURIComponent(site)}/` : ''}`} replace />
+  }
+  if (isIntegrator(tenants)) return <Navigate to="/customers" replace />
+  return current ? <Navigate to={`/org/${orgKey(current)}/`} replace /> : <Outlet />
+}
+
+/** Addresses from before the suite's convention (/doors, /settings/team …) still work: the same page in the organization used last. */
+function Legacy() {
+  const { current } = useTenant()
+  const { pathname, search, hash } = useLocation()
+  if (!current) return <Navigate to="/" replace />
+  // An unknown page inside an organization's address goes to that organization's home (never nested under another /org/).
+  const inOrg = pathname.match(/^\/org\/[^/]+/)
+  if (inOrg) return <Navigate to={`${inOrg[0]}/`} replace />
+  return <Navigate to={`/org/${orgKey(current)}${pathname}${search}${hash}`} replace />
 }
 
 /** A page for people whose role includes `cap`; anyone else following a link there is told so (the API refuses them anyway). */
 function Needs({ cap }: { cap: string }) {
   const { can } = useTenant()
   return can(cap) ? <Outlet /> : <NotForYou />
+}
+
+/** An organization's pages (and a site's: the same, on that site). Its home is the overview. */
+function orgPages() {
+  return (
+    <>
+      <Route element={<Needs cap="entry.view" />}>
+        <Route index element={<OverviewPage />} />
+        <Route path="overview" element={<OverviewPage />} />
+        <Route path="doors" element={<DoorsPage />} />
+        <Route path="access" element={<AccessPage />} />
+      </Route>
+      <Route element={<Needs cap="entry.config.manage" />}><Route path="setup" element={<SetupPage />} /></Route>
+      <Route element={<Needs cap="entry.cardholders.view" />}><Route path="people" element={<PeoplePage />} /></Route>
+      <Route element={<Needs cap="entry.events.view" />}><Route path="events" element={<EventsPage />} /></Route>
+      <Route path="settings" element={<SettingsHub />}>
+        <Route index element={<SettingsIndex />} />
+        <Route element={<Needs cap="entry.members.view" />}><Route path="team" element={<TeamPage />} /></Route>
+        <Route element={<Needs cap="entry.config.manage" />}>
+          <Route path="guard" element={<GuardSettingsPage />} />
+          <Route path="console" element={<ConsoleSettingsPage />} />
+        </Route>
+        <Route element={<Needs cap="entry.audit.view" />}><Route path="audit" element={<AuditPage />} /></Route>
+      </Route>
+    </>
+  )
 }
 
 export function App() {
@@ -71,26 +117,14 @@ export function App() {
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="customers" element={<CustomersPage />} />
-          <Route element={<Needs cap="entry.view" />}>
-            <Route path="overview" element={<OverviewPage />} />
-            <Route path="doors" element={<DoorsPage />} />
-            <Route path="access" element={<AccessPage />} />
+          {/* The suite's addresses: an organization, and one of its sites (the same pages, on that site). */}
+          <Route path="org/:orgSlug">
+            {orgPages()}
+            <Route path="site/:siteSlug">{orgPages()}</Route>
           </Route>
-          <Route element={<Needs cap="entry.config.manage" />}><Route path="setup" element={<SetupPage />} /></Route>
-          <Route element={<Needs cap="entry.cardholders.view" />}><Route path="people" element={<PeoplePage />} /></Route>
-          <Route element={<Needs cap="entry.events.view" />}><Route path="events" element={<EventsPage />} /></Route>
-          <Route path="settings" element={<SettingsHub />}>
-            <Route index element={<SettingsIndex />} />
-            <Route element={<Needs cap="entry.members.view" />}><Route path="team" element={<TeamPage />} /></Route>
-            <Route element={<Needs cap="entry.config.manage" />}>
-              <Route path="guard" element={<GuardSettingsPage />} />
-              <Route path="console" element={<ConsoleSettingsPage />} />
-            </Route>
-            <Route element={<Needs cap="entry.audit.view" />}><Route path="audit" element={<AuditPage />} /></Route>
-          </Route>
+          <Route path="*" element={<Legacy />} />
         </Route>
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }

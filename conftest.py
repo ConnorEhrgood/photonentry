@@ -6,6 +6,7 @@ import os
 
 os.environ.setdefault("OIDC_ISSUER", "https://idp.test")
 os.environ.setdefault("OIDC_AUDIENCE", "photonentry")
+os.environ.setdefault("OIDC_WEB_CLIENT_ID", "entry-web")
 os.environ.setdefault("DIRECTORY_URL", "https://directory.test")
 os.environ.setdefault("DIRECTORY_NOTICE_SECRET", "notice-secret-for-tests-0123456789-abcdef")
 os.environ.setdefault("SECRETS_KEY", "dGVzdC1zZWNyZXRzLWtleS1mb3ItcGhvdG9uZW50cnk=")   # Fernet: 32 bytes, url-safe base64

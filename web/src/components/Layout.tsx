@@ -1,8 +1,10 @@
-import { Outlet } from 'react-router-dom'
+import { useCallback } from 'react'
+import { Link, Navigate, Outlet, useMatch } from 'react-router-dom'
 import { config } from '../config'
 import { useAuth } from '../auth/AuthContext'
-import { useTenant } from '../auth/TenantContext'
+import { orgKey, useTenant } from '../auth/TenantContext'
 import { AppShell, type NavGroup, type NavItem } from '../shell/AppShell'
+import { loadApps } from '../shell/AppSwitcher'
 import { settingsTabs } from '../pages/Hubs'
 import logo from '../assets/photon-logo.png'
 
@@ -13,26 +15,34 @@ export const DIRECTORY_URL = config.directoryAppUrl
 export const isIntegrator = (tenants: { source: string }[]): boolean => tenants.length > 1 || tenants.some((t) => t.source === 'partner')
 
 export function Layout() {
-  const { me, signOut } = useAuth()
-  const { tenants, current, select, can } = useTenant()
+  const { me, signOut, source } = useAuth()
+  const { tenants, current, select, can, path, missing, moved } = useTenant()
+  const inSite = useMatch('/org/:orgSlug/site/:siteSlug/*')
+  const orgSlug = current ? orgKey(current) : null
+  const siteSlug = inSite?.params.siteSlug ?? null
+  // The suite's app switcher: every product, opening on this same organization and site (never another customer; photonid docs/HOME-PLAN.md §3).
+  const loadSwitcher = useCallback(async () => loadApps(config.directoryApiUrl, await source.getAccessToken(), orgSlug!, siteSlug), [source, orgSlug, siteSlug])
+  if (moved) return <Navigate to={moved} replace />
+  if (missing) return <OrgNotFound />
   if (!current) return <NoOrganization />
 
   // Daily work in the sidebar (DESIGN.md: about eight items at most); what a role cannot use is left out, and the API refuses it anyway.
   const items: (NavItem & { cap?: string })[] = [
     ...(isIntegrator(tenants) ? [{ to: '/customers', label: 'Customers', icon: 'clients' as const }] : []),
-    { to: '/overview', label: 'Overview', icon: 'overview', cap: 'entry.view' },
-    { to: '/doors', label: 'Doors', icon: 'door', cap: 'entry.view' },
-    { to: '/people', label: 'People', icon: 'people', cap: 'entry.cardholders.view' },
-    { to: '/access', label: 'Access', icon: 'access', cap: 'entry.view' },
-    { to: '/events', label: 'Events', icon: 'events', cap: 'entry.events.view' },
+    { to: path('/overview'), label: 'Overview', icon: 'overview', cap: 'entry.view' },
+    { to: path('/doors'), label: 'Doors', icon: 'door', cap: 'entry.view' },
+    { to: path('/people'), label: 'People', icon: 'people', cap: 'entry.cardholders.view' },
+    { to: path('/access'), label: 'Access', icon: 'access', cap: 'entry.view' },
+    { to: path('/events'), label: 'Events', icon: 'events', cap: 'entry.events.view' },
   ]
   const groups: NavGroup[] = [{ items: items.filter((i) => !i.cap || can(i.cap)).map(({ cap: _cap, ...i }) => i) }]
-  const footer: NavItem[] = settingsTabs(can).length > 0 ? [{ to: '/settings', label: 'Settings', icon: 'settings' }] : []
+  const footer: NavItem[] = settingsTabs(can).length > 0 ? [{ to: path('/settings'), label: 'Settings', icon: 'settings' }] : []
   const who = me?.name || me?.email || 'Account'
   const ends = current.expires_at ? new Date(current.expires_at) : null
 
   return (
     <AppShell
+      apps={{ current: 'entry', load: loadSwitcher, homeUrl: `${DIRECTORY_URL.replace(/\/$/, '')}/` }}
       product="PhotonEntry"
       home={groups[0].items[0]?.to ?? '/'}
       groups={groups}
@@ -60,6 +70,20 @@ export function Layout() {
     >
       <Outlet />
     </AppShell>
+  )
+}
+
+/** The address names an organization this person cannot reach, or none at all: said plainly, never another customer shown instead. */
+function OrgNotFound() {
+  return (
+    <div className="ph-auth">
+      <div className="ph-card">
+        <img className="ph-auth-logo" src={logo} alt="Photon" />
+        <h1>We can’t open that organization</h1>
+        <p>It may not exist, or this account may not have access to it in PhotonEntry.</p>
+        <Link className="ph-btn ph-btn-secondary" to="/">Go to your organizations</Link>
+      </div>
+    </div>
   )
 }
 

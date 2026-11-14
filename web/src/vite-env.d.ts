@@ -6,6 +6,8 @@ interface ImportMetaEnv {
   readonly VITE_OIDC_AUDIENCE_PROJECT: string
   /** Where "Manage organization" goes: the PhotonID directory app. */
   readonly VITE_DIRECTORY_APP_URL?: string
+  readonly VITE_DIRECTORY_API_URL?: string
+  readonly VITE_DIRECTORY_AUDIENCE_PROJECT?: string
   readonly VITE_DEV_TOKEN_LOGIN?: string
   readonly VITE_DEV_TOKEN?: string
 }

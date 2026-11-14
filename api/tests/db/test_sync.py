@@ -325,3 +325,15 @@ def test_a_projection_with_no_state_row_starts_at_zero(db):
     assert p.get_cursor() == 0
     p.set_cursor(7)
     assert p.get_cursor() == 7
+
+
+def test_an_organizations_slugs_reach_our_copy_and_me(fake, db, client):
+    from tests.db.conftest import auth
+    org = fake.add_org("Cedar Works", slug="cedar", former_slugs=["cedar-works-llc", "cw"])
+    person = fake.add_person("ann", "Ann")
+    fake.grant(person, org, "viewer")
+    assert pull(fake).ok
+    t = db.get(Tenant, uuid.UUID(org))
+    assert (t.slug, t.former_slugs) == ("cedar", ["cedar-works-llc", "cw"])
+    me = client.get("/me", headers=auth("ann")).json()["tenants"][0]
+    assert (me["slug"], me["former_slugs"]) == ("cedar", ["cedar-works-llc", "cw"])

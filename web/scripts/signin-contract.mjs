@@ -50,7 +50,7 @@ for (let i = 0; i < 60; i++) { try { if ((await fetch(APP)).ok) break } catch { 
 let api = 'ok' // what the faked PhotonEntry API answers on /me: ok | unauth | forbidden | pending | none (signed in, no organization)
 const OWNER = ['entry.view', 'entry.events.view', 'entry.cardholders.view', 'entry.door.unlock', 'entry.lockdown', 'entry.cardholders.manage',
   'entry.credential.issue', 'entry.config.manage', 'entry.controller.manage', 'entry.members.view', 'entry.emergency.open', 'entry.audit.view']
-const tenant = { id: 't1', name: 'Cedar Works', status: 'active', partner_id: null, role: 'owner', scope: { all: true }, source: 'direct', expires_at: null, capabilities: OWNER }
+const tenant = { id: 't1', name: 'Cedar Works', slug: '', former_slugs: [], status: 'active', partner_id: null, role: 'owner', scope: { all: true }, source: 'direct', expires_at: null, capabilities: OWNER }
 let currentEmail = ''
 const me = () => ({ id: 'p1', name: 'Sam Signin', email: currentEmail, is_platform_admin: false, tenants: api === 'none' ? [] : [tenant] })
 const SITES = [{ id: 's1', slug: 'cw-main', name: 'Main office', address: '1 Mill Road, Pittsburgh PA', timezone: 'America/New_York' }]
@@ -107,6 +107,7 @@ async function skipMfaPrompt(page) {
   if (page.url().includes('/ui/v2/login/mfa/set')) await page.getByRole('button', { name: 'Not now' }).click()
 }
 const DEEP = `${APP}/people?q=sam#h`
+const LANDED = `${APP}/org/t1/people?q=sam#h`        // an old address: the same page under the organization (the suite's addresses)
 
 try {
   const password = `Pw-${randomBytes(6).toString('hex')}-A1!`
@@ -125,6 +126,7 @@ try {
   if (authz.searchParams.get('redirect_uri') !== `${APP}/auth/callback`) fail(`redirect_uri is ${authz.searchParams.get('redirect_uri')}`)
   if (authz.searchParams.get('code_challenge_method') !== 'S256') fail('the sign-in does not use PKCE (S256)')
   if (!authz.searchParams.get('scope').includes('urn:zitadel:iam:org:project:id:399489273323061251:aud')) fail(`the token is not for PhotonEntry's API: scope ${authz.searchParams.get('scope')}`)
+  if (!authz.searchParams.get('scope').includes('urn:zitadel:iam:org:project:id:398336253029777411:aud')) fail('the token does not reach the directory (the app switcher)')
   ok('signed out: straight from the deep link to PhotonID (no sign-in card), code + PKCE, the API project in the audience')
   await page.waitForLoadState('networkidle')
   if (await page.getByText(/Register|Create your PhotonID|sign up/i).count()) fail('PhotonID offers sign-up on a PhotonEntry sign-in')
@@ -136,10 +138,10 @@ try {
   await typePassword(page, password)
   await page.waitForURL((u) => u.href.startsWith(APP) && !u.pathname.startsWith('/auth/'), { timeout: 20000 }).catch(async () => { await skipMfaPrompt(page) })
   if (page.url().includes('/ui/v2/login/mfa/set')) await skipMfaPrompt(page)
-  await page.waitForURL(DEEP, { timeout: 20000 })
+  await page.waitForURL(LANDED, { timeout: 20000 })
   await page.getByRole('heading', { name: 'People', exact: true }).waitFor()
   if (!meCalls.length || !meCalls.every((c) => c.bearer)) fail('the API was called without a bearer token')
-  ok('deep link survived sign-in (/people?q=sam#h); the API gets a bearer token')
+  ok('deep link survived sign-in (/people?q=sam#h, now /org/t1/people?q=sam#h); the API gets a bearer token')
   await shot(page, 'signed-in')
 
   // 3. Silent SSO: a new tab (no tokens of its own) is signed in without seeing a PhotonID page.

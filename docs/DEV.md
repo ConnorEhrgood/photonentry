@@ -53,6 +53,18 @@ curl "http://127.0.0.1:8135/v1/relay?intercom=<id>&key=<key>"
 `entry-link` prints its claim code. With the full API, an admin claims it with `POST /tenants/{org}/controllers/claim`; with the link alone,
 the tests claim through the store (`store.claim`).
 
+## The suite's addresses, app switcher and home dashboard (2026-11-14)
+
+- **Addresses:** `/org/<org-slug>/…` and `/org/<org-slug>/site/<site-slug>/…` (photon-suite ARCHITECTURE §6). Slugs come only from the
+  directory (`tenant.slug`, `former_slugs`, migration 0004); until it has sent one, the organization's id stands in. Old addresses redirect.
+  The organization is the address's (`auth/TenantContext.tsx`); links go through `path()`.
+- **The app switcher** (photon-ui's shell): the directory's `GET /v1/me/apps` with our own token, which also carries the directory's audience
+  (`VITE_DIRECTORY_AUDIENCE_PROJECT`: development 398336253029777411; production 398636902653100035 is built in; `VITE_DIRECTORY_API_URL`
+  defaults to https://api.account.photonind.com).
+- **`GET /v1/summary`** for the account app's home dashboard (`app/summary.py`): it takes a token issued to another app on this route only.
+  The API needs `OIDC_WEB_CLIENT_ID` (our web client: development 399489273423724547) to tell them apart, and `ACCOUNT_ORIGIN` (default
+  https://account.photonind.com) for this route's CORS.
+
 ## Conventions
 
 - **Tokens on the controller:** PhotonEntry owns only objects whose token starts with `pe-`:

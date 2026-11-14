@@ -41,7 +41,7 @@ const ADMIN_CAPS = [...OPERATOR_CAPS, 'entry.cardholders.manage', 'entry.credent
 const ALL = [...ADMIN_CAPS, 'entry.emergency.open', 'entry.audit.view']
 
 export const OWNER: TenantAccess = {
-  id: 't1', name: 'Cedar Works', status: 'active', partner_id: null, role: 'owner', scope: { all: true }, source: 'direct', expires_at: null, capabilities: ALL,
+  id: 't1', name: 'Cedar Works', slug: '', former_slugs: [], status: 'active', partner_id: null, role: 'owner', scope: { all: true }, source: 'direct', expires_at: null, capabilities: ALL,
 }
 export const VIEWER: TenantAccess = { ...OWNER, role: 'viewer', capabilities: VIEWER_CAPS }
 export const OPERATOR: TenantAccess = { ...OWNER, role: 'operator', capabilities: OPERATOR_CAPS }

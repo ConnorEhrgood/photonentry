@@ -303,3 +303,31 @@ must also be allowed by the controller's firewall; the alternative is Axis's rev
 
 **Also:** the sign-in contract's `vite preview` was left running after a run (killing `npx` does not stop vite); it now runs in its own process
 group and is stopped with it.
+
+## 2026-11-14: the suite's addresses, app switcher and home-dashboard summary (photonid docs/HOME-BRIEFS.md; not deployed)
+
+**Built:**
+- **Slugs from the directory:** the vendored directory client re-copied (photonid d707a4c: organizations carry `slug` and `former_slugs`);
+  migration 0004 keeps them on `tenant`; `/me` returns them.
+- **Addresses:** every organization page is `/org/<slug>/…`, and again under `/org/<slug>/site/<site-slug>/…` (the pages work on that site,
+  and the sidebar's links stay on it). The organization's home and a site's home are the overview. Old addresses (`/doors?site=…`) redirect to
+  the same page in the organization used last; a former slug redirects to the current one; a slug this person cannot reach is "We can't open
+  that organization", never another customer; `/?organization=<id|slug>&site=<slug>` opens that organization and site. Switching customer
+  keeps the page.
+- **The app switcher:** photon-ui re-vendored (e6a91c2); `AppShell` gets `apps` while an organization is on screen, loaded from the
+  directory's `GET /v1/me/apps` with the organization's and site's slugs. Sign-in also asks for the directory's audience.
+- **`GET /v1/summary?organization=<id>`** (`app/summary.py`, CRITICAL): "8 of 8 doors online", per organization and per site; `attention`
+  when a door is offline or forced or held open, `down` when none is online, `unknown` with no doors. From what PhotonEntry keeps (controllers'
+  last contact, the doors' newest alarm), never asking a controller; in the person's own session (row-level security limits it to their
+  sites); cached 30 s per organization and scope; `Cache-Control: private, max-age=30`; CORS for the account app on this route only. Without
+  `organization`: one line across every organization the person reaches. **A token another app asked for is accepted on this route only**:
+  everywhere else a token whose `client_id`/`azp` is not our web client (`OIDC_WEB_CLIENT_ID`) is a 401.
+
+**Verified:** 476 Python tests (the summary against the directory's own schema, the counts, the cache and its scope, 403 without access,
+the one-route rule, CORS; slugs through the sync) and 171 web tests (addresses, redirects, not found, sites, `?organization=`, switching
+customers, the switcher's request); 23 CRITICAL modules at 100%. The sign-in contract against the development PhotonID passes again, with the
+directory's audience in the request and the old deep link landing at `/org/t1/people?q=sam#h`. Screenshots of an organization home, a site
+home and the switcher open at the three sizes, looked at.
+
+**Found on the way:** a second `@app.middleware("http")` made coverage lose the link service's route code after its first `await` (the gate
+caught it). The summary's CORS is now plain ASGI, added outside CORSMiddleware so the account app's preflight reaches it first.

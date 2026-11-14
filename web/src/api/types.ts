@@ -3,6 +3,9 @@
 export interface TenantAccess {
   id: string
   name: string
+  /** Its address in every Photon app, /org/<slug>/ (from the directory; empty until the directory has sent it: the id stands in). */
+  slug: string
+  former_slugs: string[]
   status: 'active' | 'suspended'
   partner_id: string | null
   role: 'owner' | 'admin' | 'operator' | 'viewer'

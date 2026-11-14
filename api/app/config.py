@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     oidc_audience: str = ""
     oidc_jwks_url: str = ""
     oidc_algorithms: str = "RS256"
+    # PhotonEntry's own web client at PhotonID. A token another app asked for (its client_id is not this one), even with our audience, is
+    # refused everywhere but GET /v1/summary, which the account app's home dashboard calls with its own token (photonid docs/HOME-PLAN.md §2).
+    oidc_web_client_id: str = ""
+    # The PhotonID account app (the home dashboard): the one origin allowed to read /v1/summary from a browser.
+    account_origin: str = "https://account.photonind.com"
     cors_origins: str = ""                  # development: http://localhost:5193
 
     # The PhotonID directory: our read-only copy, kept by notify-then-pull.
@@ -80,6 +85,10 @@ class Settings(BaseSettings):
             return "FINGERPRINT_KEY must be set to a long random value"
         if not self.cors_list or any(not o.startswith("https://") for o in self.cors_list):
             return "CORS_ORIGINS must list the web app's https:// origin"
+        if not self.oidc_web_client_id:
+            return "OIDC_WEB_CLIENT_ID must be set (tokens of other apps are refused by it)"
+        if not self.account_origin.startswith("https://"):
+            return "ACCOUNT_ORIGIN must be an https:// origin"
         return None
 
 

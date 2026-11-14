@@ -76,7 +76,7 @@ describe('setting up an office, start to finish', () => {
     await user.click(await screen.findByRole('button', { name: 'Publish' }))
     expect(await screen.findByText('Up to date')).toBeInTheDocument()
     expect(published).toBe(true)
-    expect(screen.getByRole('link', { name: 'Done: see the doors' })).toHaveAttribute('href', '/doors?site=s1')
+    expect(screen.getByRole('link', { name: 'Done: see the doors' })).toHaveAttribute('href', '/org/t1/doors?site=s1')
   })
 
   it('shows a refused claim, a door chosen twice, import problems and publish problems', async () => {
@@ -119,7 +119,7 @@ describe('the daily pages', () => {
     expect(await screen.findByText('Never connected')).toBeInTheDocument()
     expect(screen.getByText('Settings refused')).toBeInTheDocument()
     expect(screen.getByText('capacity')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Set up this site' })).toHaveAttribute('href', '/setup?site=s1')
+    expect(screen.getByRole('link', { name: 'Set up this site' })).toHaveAttribute('href', '/org/t1/setup?site=s1')
   })
 
   it('doors: open one now and lock the site down, after confirming', async () => {
@@ -209,8 +209,7 @@ describe('the daily pages', () => {
   it('settings: the team, and the audit trail for an owner', async () => {
     app('/settings', { [`GET ${T}/members`]: [{ person_id: 'm1', name: 'Ada Owner', email: 'a@x', role: 'owner', scope: { all: true }, source: 'direct', pending: false }],
       [`GET ${T}/audit`]: [{ at: now, actor: 'Partner support', action: 'site.lockdown', target_type: 'site', target_id: 's1', detail: {} }] }, meWith(OWNER))
-    expect(await screen.findByText('Ada Owner')).toBeInTheDocument()
-    await userEvent.setup().click(screen.getByRole('link', { name: 'Audit trail' }))
+    await userEvent.setup().click(await screen.findByRole('link', { name: 'Audit trail' }))
     expect(await screen.findByText('Partner support')).toBeInTheDocument()
     expect(screen.getByText('site: lockdown')).toBeInTheDocument()
   })

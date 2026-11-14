@@ -24,7 +24,7 @@ const VIEWER = ['entry.view', 'entry.events.view']
 const OPERATOR = [...VIEWER, 'entry.cardholders.view', 'entry.door.unlock', 'entry.lockdown']
 const ADMIN = [...OPERATOR, 'entry.cardholders.manage', 'entry.credential.issue', 'entry.config.manage', 'entry.controller.manage', 'entry.members.view']
 const OWNER = [...ADMIN, 'entry.emergency.open', 'entry.audit.view']
-const tenant = (o = {}) => ({ id: 't1', name: 'Cedar Works', status: 'active', partner_id: null, role: 'owner', scope: { all: true }, source: 'direct', expires_at: null, capabilities: OWNER, ...o })
+const tenant = (o = {}) => ({ id: 't1', name: 'Cedar Works', slug: 'cedar-works', former_slugs: [], status: 'active', partner_id: null, role: 'owner', scope: { all: true }, source: 'direct', expires_at: null, capabilities: OWNER, ...o })
 const tech = (o = {}) => tenant({ role: 'admin', source: 'partner', partner_id: 'pa', capabilities: ADMIN, ...o })
 const me = (tenants, extra = {}) => ({ id: 'p1', name: 'Ada Owner', email: 'ada@example.com', is_platform_admin: false, tenants, ...extra })
 const now = new Date().toISOString()
@@ -76,7 +76,11 @@ const MEMBERS = [{ person_id: 'm1', name: 'Ada Owner', email: 'ada@example.com',
 const AUDIT = [{ at: now, actor: 'Partner support', action: 'site.publish', target_type: 'site', target_id: 's1', detail: {} },
   { at: now, actor: 'Ada Owner', action: 'cardholder.add', target_type: 'cardholder', target_id: 'h1', detail: { name: 'Eve Park' } }]
 
+const APPS = { home: 'https://account.photonind.com/', organization: { id: 't1', slug: 'cedar-works', name: 'Cedar Works' }, site: { id: 's1', slug: 'cw-main', name: 'Main office' },
+  apps: [['account', 'PhotonID', 'open'], ['console', 'PhotonConsole', 'open'], ['guard', 'PhotonGuard', 'open'], ['entry', 'PhotonEntry', 'open'], ['vox', 'PhotonVox', 'not_enabled'],
+    ['board', 'PhotonBoard', 'no_access'], ['edge', 'PhotonEdge', 'coming']].map(([key, name, state]) => ({ key, name, state, ...(state === 'open' ? { url: `https://${key}.photonind.com/org/cedar-works/site/cw-main/` } : {}) })) }
 const answers = (who) => ({
+  '/v1/me/apps': [200, APPS],
   '/me': [200, who === 'tech' ? me([tech(), tech({ id: 't2', name: 'Birch Co', status: 'suspended' }), tech({ id: 't3', name: 'Elm Street School' })], { name: 'Tom Tech' }) : me([tenant()])],
   '/templates': [200, CATALOG],
   '/tenants/t1/sites': [200, SITES], '/tenants/t2/sites': [200, SITES], '/tenants/t3/sites': [200, SITES],
@@ -96,6 +100,8 @@ const answers = (who) => ({
 
 // [file name, route, who, steps]: steps are buttons to click, radios to pick, in order.
 const PAGES = [
+  ['org-home', '/org/cedar-works/', 'owner'], ['site-home', '/org/cedar-works/site/cw-main/', 'owner'],
+  ['switcher', '/org/cedar-works/site/cw-main/doors', 'owner', [{ button: 'Switch app' }]],
   ['overview', '/overview', 'owner'], ['doors', '/doors', 'owner'], ['people', '/people', 'owner'], ['person', '/people', 'owner', [{ button: 'Alice Smith' }]],
   ['access', '/access', 'owner'], ['events', '/events', 'owner'], ['customers-tech', '/', 'tech'], ['team', '/settings/team', 'owner'], ['guard', '/settings/guard', 'owner'], ['console', '/settings/console', 'owner'], ['audit', '/settings/audit', 'owner'],
   ['intercom-add', '/doors', 'owner', [{ button: 'Add an intercom' }]], ['intercom-setup', '/doors', 'owner', [{ button: 'Setup values' }]],
@@ -108,7 +114,7 @@ const PAGES = [
 ].filter(([name]) => !only || name.includes(only))
 
 mkdirSync('screenshots', { recursive: true })
-const env = { ...process.env, VITE_API_URL: API, VITE_OIDC_ISSUER: 'http://idp.test', VITE_OIDC_CLIENT_ID: 'x', VITE_OIDC_AUDIENCE_PROJECT: '1', VITE_DEV_TOKEN_LOGIN: '1' }
+const env = { ...process.env, VITE_API_URL: API, VITE_OIDC_ISSUER: 'http://idp.test', VITE_OIDC_CLIENT_ID: 'x', VITE_OIDC_AUDIENCE_PROJECT: '1', VITE_DEV_TOKEN_LOGIN: '1', VITE_DIRECTORY_API_URL: API }
 const vite = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { env, stdio: 'ignore', detached: true })
 const stop = () => { try { process.kill(-vite.pid) } catch { /* already gone */ } }
 process.on('exit', stop)

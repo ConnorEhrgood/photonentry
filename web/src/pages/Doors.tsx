@@ -21,7 +21,7 @@ export function controllerState(c: Controller, now = Date.now()): { tone: 'ok' |
 /** The site at a glance: its controllers, how each is doing, and the way to set the site up. */
 export function OverviewPage() {
   const { api } = useAuth()
-  const { current, can } = useTenant()
+  const { current, can, path } = useTenant()
   const sites = useSites()
   const [site, pick] = useSite(sites.data)
   const controllers = useLoad(() => api.get<Controller[]>(`/tenants/${current!.id}/controllers`), [api, current?.id])
@@ -34,7 +34,7 @@ export function OverviewPage() {
     <>
       <PageHeader title="Overview">
         <SitePicker sites={sites.data} site={site} onPick={pick} />
-        {can('entry.config.manage') && site && <Link className="ph-btn" to={`/setup?site=${site.id}`}>Set up this site</Link>}
+        {can('entry.config.manage') && site && <Link className="ph-btn" to={path(`/setup?site=${site.id}`)}>Set up this site</Link>}
       </PageHeader>
       <div className="ph-stat-grid">
         <div className={`ph-stat ph-edge ph-edge-${here.length ? 'ok' : 'info'}`}><b>{here.length}</b><span>Controllers</span></div>
@@ -43,7 +43,7 @@ export function OverviewPage() {
       </div>
       {here.length === 0 ? (
         <div className="ph-empty"><p>No controllers at {site?.name} yet.</p>
-          {can('entry.config.manage') && site && <Link className="ph-btn" to={`/setup?site=${site.id}`}>Set up {site.name}</Link>}</div>
+          {can('entry.config.manage') && site && <Link className="ph-btn" to={path(`/setup?site=${site.id}`)}>Set up {site.name}</Link>}</div>
       ) : (
         <div className="ph-table-wrap">
           <table className="ph-table pe-table">
@@ -71,7 +71,7 @@ export function OverviewPage() {
 /** The site's doors: who may open them is on Access; here, opening one remotely and locking the site down. */
 export function DoorsPage() {
   const { api } = useAuth()
-  const { current, can } = useTenant()
+  const { current, can, path } = useTenant()
   const t = current!.id
   const sites = useSites()
   const [site, pick] = useSite(sites.data)
@@ -102,7 +102,7 @@ export function DoorsPage() {
       {note && <p className="ph-banner ph-banner-info" role="status">{note}</p>}
       <ErrorText>{error}</ErrorText>
       {doors.data.length === 0 ? (
-        <div className="ph-empty"><p>No doors at {site?.name} yet.</p>{can('entry.config.manage') && site && <Link className="ph-btn" to={`/setup?site=${site.id}`}>Set up {site.name}</Link>}</div>
+        <div className="ph-empty"><p>No doors at {site?.name} yet.</p>{can('entry.config.manage') && site && <Link className="ph-btn" to={path(`/setup?site=${site.id}`)}>Set up {site.name}</Link>}</div>
       ) : (
         <div className="ph-table-wrap">
           <table className="ph-table pe-table">
