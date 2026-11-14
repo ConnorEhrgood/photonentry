@@ -61,3 +61,8 @@
 .pe-lockdown { margin-bottom: 1.25rem; }
 .pe-lockdown-banner p { margin: 0; }
 .pe-lockdown-banner p + p { margin-top: 0.5rem; }
+
+/* Commissioning (pages/Commissioning.tsx) */
+.pe-badge-btn { padding: 0; background: none; border: 0; }
+.pe-end { align-self: end; }
+.pe-record dd { overflow-wrap: anywhere; }

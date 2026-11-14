@@ -13,10 +13,10 @@ Every tenant table has `tenant_id` and row-level security from migration 0001; t
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import (BigInteger, Boolean, CheckConstraint, DateTime, Float, Index, Integer, LargeBinary, SmallInteger, String, Text,
+from sqlalchemy import (BigInteger, Boolean, CheckConstraint, Date, DateTime, Float, Index, Integer, LargeBinary, SmallInteger, String, Text,
                         UniqueConstraint, text)
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -418,3 +418,57 @@ class Lockdown(Base):
     ended_by_source: Mapped[str] = mapped_column(String(10), default="")
     end_reason: Mapped[str] = mapped_column(String(200), default="")
     end_commands: Mapped[List[str]] = mapped_column(JSONB, default=list)
+
+
+# ---- 6. commissioning (Step 6; ARCHITECTURE §7.2, §7.7) ----
+
+
+class License(Base):
+    """An installer's or a firm's license for a state (ARCHITECTURE §7.7): the partner's (shared by every customer it serves) or, for an
+    organization that installs its own doors, the organization's. Exactly one of partner_id and tenant_id is set."""
+    __tablename__ = "license"
+    id: Mapped[uuid.UUID] = mapped_column(UUIDT, primary_key=True, default=uuid.uuid4)
+    partner_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUIDT, index=True)
+    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUIDT, index=True)
+    state: Mapped[str] = mapped_column(String(2))                     # PA | OH | WV
+    kind: Mapped[str] = mapped_column(String(40))                     # app/commissioning.py LICENSE_KINDS
+    holder: Mapped[str] = mapped_column(String(128))                  # the technician or the firm, as on the license
+    number: Mapped[str] = mapped_column(String(64))
+    expires_on: Mapped[Optional[date]] = mapped_column(Date)
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUIDT)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    removed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))     # kept: commissioning records name it
+
+
+class Commissioning(Base):
+    """A door's commissioning record (ARCHITECTURE §7.2, decision 16), signed by name. Append-only: the newest record of a door says whether it
+    is in service; `voided_at` (with a reason) returns the door to "needs commissioning"."""
+    __tablename__ = "commissioning"
+    id: Mapped[uuid.UUID] = mapped_column(UUIDT, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUIDT, index=True)
+    site_id: Mapped[uuid.UUID] = mapped_column(UUIDT, index=True)
+    door_id: Mapped[uuid.UUID] = mapped_column(UUIDT, index=True)
+    controller_door: Mapped[str] = mapped_column(String(64))          # the door's controller door when signed: a change voids the record
+    jurisdiction: Mapped[str] = mapped_column(String(2))              # PA | OH | WV | ZZ (elsewhere)
+    lock_type: Mapped[str] = mapped_column(String(40))
+    failure_state: Mapped[str] = mapped_column(String(12))            # fail_secure | fail_safe
+    egress: Mapped[str] = mapped_column(String(200))
+    special_locking: Mapped[str] = mapped_column(String(20))          # none | delayed_egress | controlled_egress | sensor_release
+    fire_release: Mapped[str] = mapped_column(String(12))             # tested | none_present
+    fire_tested_on: Mapped[Optional[date]] = mapped_column(Date)
+    fire_tested_by: Mapped[str] = mapped_column(String(128), default="")
+    rex_checked: Mapped[bool] = mapped_column(Boolean)
+    contact_checked: Mapped[bool] = mapped_column(Boolean)
+    reader_ul_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    ahj_reference: Mapped[str] = mapped_column(String(128))
+    installer: Mapped[str] = mapped_column(String(128))
+    license_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUIDT)
+    license_text: Mapped[str] = mapped_column(String(200), default="")   # the license as it was when signed ("WV SP-LV 12345, Ann Lee, to 2027-06-30")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    signed_by: Mapped[uuid.UUID] = mapped_column(UUIDT)
+    signed_by_label: Mapped[str] = mapped_column(String(200))
+    signed_by_source: Mapped[str] = mapped_column(String(10), default="direct")
+    signed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    voided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    voided_by_label: Mapped[str] = mapped_column(String(200), default="")
+    void_reason: Mapped[str] = mapped_column(String(200), default="")

@@ -6,6 +6,7 @@ import { orgKey, TenantProvider, useTenant } from './auth/TenantContext'
 import { isIntegrator, Layout } from './components/Layout'
 import { AccessPage } from './pages/Access'
 import { AuditPage } from './pages/Audit'
+import { LicensesPage } from './pages/Commissioning'
 import { CustomersPage } from './pages/Customers'
 import { DoorsPage, OverviewPage } from './pages/Doors'
 import { EventsPage } from './pages/Events'
@@ -100,6 +101,7 @@ function orgPages() {
           <Route path="guard" element={<GuardSettingsPage />} />
           <Route path="console" element={<ConsoleSettingsPage />} />
           <Route path="vox" element={<VoxSettingsPage />} />
+          <Route path="licenses" element={<LicensesPage />} />
         </Route>
         <Route element={<Needs cap="entry.audit.view" />}><Route path="audit" element={<AuditPage />} /></Route>
       </Route>

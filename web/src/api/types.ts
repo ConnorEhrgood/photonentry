@@ -190,3 +190,63 @@ export interface Lockdown {
   end_reason: string | null
   doors: { door_id: string; door: string; state: 'sent' | 'done' | 'failed' | 'expired' | 'not_sent'; error: string }[]
 }
+
+/** An installer's or firm's license (api/app/routes/commissioning.py). */
+export interface License {
+  id: string
+  owner: 'partner' | 'organization'
+  state: 'PA' | 'OH' | 'WV'
+  kind: string
+  kind_label: string
+  holder: string
+  number: string
+  expires_on: string | null
+  expired: boolean
+  expiring: boolean
+  removed: boolean
+  text: string
+}
+
+export interface Licenses {
+  kinds: Record<string, Record<string, string>>
+  can_manage_partner: boolean
+  can_manage_organization: boolean
+  licenses: License[]
+}
+
+/** A door's signed commissioning record (ARCHITECTURE §7.2). */
+export interface CommissioningRecord {
+  id: string
+  door_id: string
+  jurisdiction: 'PA' | 'OH' | 'WV' | 'ZZ'
+  lock_type: string
+  lock_type_label: string
+  failure_state: 'fail_secure' | 'fail_safe'
+  egress: string
+  special_locking: string
+  fire_release: 'tested' | 'none_present'
+  fire_tested_on: string | null
+  fire_tested_by: string
+  rex_checked: boolean
+  contact_checked: boolean
+  reader_ul_verified: boolean
+  ahj_reference: string
+  installer: string
+  license: string | null
+  notes: string
+  signed_by: string
+  signed_at: string
+  voided_at: string | null
+  voided_by: string | null
+  void_reason: string | null
+}
+
+export interface DoorCommissioning { door_id: string; door: string; in_service: boolean; why: '' | 'never' | 'voided' | 'moved'; record: CommissioningRecord | null }
+
+export interface SiteCommissioning {
+  jurisdiction: 'PA' | 'OH' | 'WV' | 'ZZ'
+  required_license: Record<string, string>
+  lock_types: Record<string, string>
+  special_locking: Record<string, string>
+  doors: DoorCommissioning[]
+}

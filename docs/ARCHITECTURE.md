@@ -412,6 +412,11 @@ A door is **in service** only after the installer records:
 
 It is signed by name, kept in the audit trail, and shown on the door. A change of lock type returns the door to "needs commissioning".
 
+**Built (2026-11-14):** records are append-only; the newest one in force makes the door "in service"; an admin returns a door to "needs
+commissioning" with a reason (a new lock is a new record), and moving the door to another controller door does it by itself. In West Virginia the
+installer's current SP-LV license is required; any license named must be for the site's state and current. **Open question for Connor:** "in
+service" is shown and audited but does not yet stop anything (an uncommissioned door still gets its settings). Should it, and what exactly?
+
 ### 7.3 Who may act remotely
 
 `entry.door.unlock`, `entry.lockdown`, `entry.credential.issue` and `entry.emergency.open` are sensitive capabilities, gated by the partner

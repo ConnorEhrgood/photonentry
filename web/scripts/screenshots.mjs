@@ -84,7 +84,26 @@ const LOCKDOWN = { id: 'l1', site_id: 's1', site: 'Main office', whole_site: tru
   started_by: 'Fay Front', started_at: new Date(Date.now() - 4 * 60e3).toISOString(), active: true, ended_at: null, ended_by: null, end_reason: null,
   doors: [{ door_id: 'd1', door: 'Main entrance', state: 'done', error: '' }, { door_id: 'd2', door: 'Staff entrance', state: 'done', error: '' },
     { door_id: 'd3', door: 'IT closet', state: 'expired', error: '' }] }
+const REC = { id: 'r1', door_id: 'd1', jurisdiction: 'PA', lock_type: 'strike_fail_secure', lock_type_label: 'Electric strike, fail-secure', failure_state: 'fail_secure',
+  egress: 'Lever, free egress', special_locking: 'none', fire_release: 'tested', fire_tested_on: '2026-11-10', fire_tested_by: 'Bo Fire (Keystone Fire)',
+  rex_checked: true, contact_checked: true, reader_ul_verified: false, ahj_reference: 'Pittsburgh permit EL-2026-0412', installer: 'Ann Lee',
+  license: 'PA Pittsburgh electrical trade license ETL-5521, Ann Lee, to 2027-03-31', notes: '', signed_by: 'Partner support', signed_at: '2026-11-14T15:00:00Z',
+  voided_at: null, voided_by: null, void_reason: null }
+const COMMISSIONING = { jurisdiction: 'PA', required_license: { WV: 'wv_sp_lv' },
+  lock_types: { strike_fail_secure: 'Electric strike, fail-secure', strike_fail_safe: 'Electric strike, fail-safe', maglock: 'Magnetic lock', other: 'Other' },
+  special_locking: { none: 'None', delayed_egress: 'Delayed egress', controlled_egress: 'Controlled egress', sensor_release: 'Sensor release (maglock)' },
+  doors: [{ door_id: 'd1', door: 'Main entrance', in_service: true, why: '', record: REC }, { door_id: 'd2', door: 'Staff entrance', in_service: false, why: 'never', record: null },
+    { door_id: 'd3', door: 'IT closet', in_service: false, why: 'voided', record: { ...REC, id: 'r3', door_id: 'd3', voided_at: now, void_reason: 'New lock fitted' } }] }
+const LIC = { kinds: { PA: { pa_pittsburgh_electrical: 'Pittsburgh electrical trade license', pa_hicpa: 'Home Improvement Contractor (HICPA)', other: 'Other' },
+  OH: { oh_ocilb_electrical: 'OCILB electrical contractor', other: 'Other' }, WV: { wv_sp_lv: 'Specialty Low-Voltage Electrician (SP-LV), State Fire Marshal', other: 'Other' } },
+  can_manage_partner: true, can_manage_organization: true, licenses: [
+    { id: 'l1', owner: 'partner', state: 'PA', kind: 'pa_pittsburgh_electrical', kind_label: 'Pittsburgh electrical trade license', holder: 'Ann Lee', number: 'ETL-5521',
+      expires_on: '2027-03-31', expired: false, expiring: false, removed: false, text: '' },
+    { id: 'l2', owner: 'partner', state: 'WV', kind: 'wv_sp_lv', kind_label: 'Specialty Low-Voltage Electrician (SP-LV), State Fire Marshal', holder: 'Ben Ortiz',
+      number: 'SPLV-20877', expires_on: '2026-12-01', expired: false, expiring: true, removed: false, text: '' }] }
 const answers = (who) => ({
+  '/tenants/t1/sites/s1/commissioning': [200, COMMISSIONING], '/tenants/t1/licenses': [200, LIC],
+  '/tenants/t1/sites/s1/doors/d1/commissioning': [200, [REC]],
   '/tenants/t1/lockdowns/active': [200, who === 'lockdown' ? [LOCKDOWN] : []],
   '/tenants/t1/sites/s1/lockdowns': [200, who === 'lockdown' ? [LOCKDOWN] : []],
   '/v1/me/apps': [200, APPS],
@@ -114,6 +133,8 @@ const PAGES = [
   ['org-home', '/org/cedar-works/', 'owner'], ['site-home', '/org/cedar-works/site/cw-main/', 'owner'],
   ['switcher', '/org/cedar-works/site/cw-main/doors', 'owner', [{ button: 'Switch app' }]],
   ['lockdown-start', '/doors', 'owner', [{ button: 'Lock down' }]], ['lockdown-active', '/doors', 'lockdown'],
+  ['commission-form', '/doors', 'owner', [{ button: 'Staff entrance: commission' }]],
+  ['commission-record', '/doors', 'owner', [{ button: 'Main entrance: commissioning record' }]], ['licenses', '/settings/licenses', 'owner'],
   ['overview', '/overview', 'owner'], ['doors', '/doors', 'owner'], ['people', '/people', 'owner'], ['person', '/people', 'owner', [{ button: 'Alice Smith' }]],
   ['access', '/access', 'owner'], ['events', '/events', 'owner'], ['customers-tech', '/', 'tech'], ['team', '/settings/team', 'owner'], ['guard', '/settings/guard', 'owner'], ['console', '/settings/console', 'owner'], ['vox', '/settings/vox', 'owner'],
   ['intercom-change', '/doors', 'owner', [{ button: 'Change' }]], ['audit', '/settings/audit', 'owner'],

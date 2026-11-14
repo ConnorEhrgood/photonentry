@@ -379,3 +379,21 @@ the VAPIX track (switching needs a factory reset): noted for buying the bench ki
 **Verified:** the lockdown tests (scope, reason, one at a time and the race, door states, out-of-service controllers, who may, row-level
 security) at 100% branch coverage; the end-to-end test locks a simulated door down and releases it; web tests for the dialog, the panel and the
 banner; screenshots at the three sizes, looked at (two fixes: "Open now" on locked-down doors, the panel's spacing).
+
+## 2026-11-14: Step 6, the commissioning record (part 2)
+
+**Built** (migration 0007; `app/commissioning.py` and `app/routes/commissioning.py`, both CRITICAL):
+- **Licenses** (ARCHITECTURE §7.7): a partner's, recorded once by its own staff (an admin grant from the partner, checked in the database by
+  `en_partners_staffed()`) and read by every customer it serves; or an organization's own. State, kind (the kinds §7.7 found per state), holder,
+  number, expiry; "expires soon" within 30 days; removing one keeps it, because records name it. Settings > Licenses.
+- **Each door's record** (§7.2): state (from the site's address, changeable), AHJ reference or permit, lock type and how it is wired, egress,
+  special locking (with a UL-verified reader), fire release tested (when, by whom) or none at the door, request-to-exit and contact checked,
+  the installer and their license (required in WV: a current SP-LV; any license must be for the site's state and current on the day). Every
+  missing part is listed at once. Signed in the admin's own name ("Partner support" to the customer), audited, never edited; "needs
+  commissioning again" with a reason; a door moved to another controller door needs it again by itself.
+- **Web:** the Doors page shows each door's state; admins commission from it; anyone opens the record and its history.
+
+**Verified:** 538 Python tests (the rules, including the state from an address; licenses and records on Postgres with row-level security)
+and 180 web tests; 27 CRITICAL modules at 100%. Screenshots at the three sizes, looked at (the record's wording fixed).
+
+**Open for Connor:** "in service" does not yet stop anything; whether an uncommissioned door should be held back, and how.

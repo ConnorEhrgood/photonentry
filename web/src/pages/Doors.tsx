@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { Controller, Door, Lockdown, Schedule } from '../api/types'
+import type { Controller, Door, DoorCommissioning, Lockdown, Schedule, SiteCommissioning } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { useTenant } from '../auth/TenantContext'
 import { SitePicker, useSite, useSites } from '../components/sites'
@@ -9,6 +9,7 @@ import { ago } from '../lib/format'
 import { useLoad } from '../lib/useLoad'
 import { IntercomsSection } from './Intercoms'
 import { LockdownDialog, LockdownPanel } from '../components/Lockdown'
+import { CommissionDialog, CommissioningBadge, RecordDialog } from './Commissioning'
 
 /** How a controller is doing, in a word: offline, refusing its settings, applying them, or fine. Never colour alone (DESIGN.md). */
 export function controllerState(c: Controller, now = Date.now()): { tone: 'ok' | 'info' | 'warning' | 'error'; text: string } {
@@ -79,7 +80,9 @@ export function DoorsPage() {
   const doors = useLoad(() => (site ? api.get<Door[]>(`/tenants/${t}/sites/${site.id}/doors`) : Promise.resolve([])), [api, t, site?.id])
   const schedules = useLoad(() => (site ? api.get<Schedule[]>(`/tenants/${t}/sites/${site.id}/schedules`) : Promise.resolve([])), [api, t, site?.id])
   const lockdowns = useLoad(() => (site ? api.get<Lockdown[]>(`/tenants/${t}/sites/${site.id}/lockdowns`) : Promise.resolve([])), [api, t, site?.id])
+  const commissioning = useLoad(() => (site ? api.get<SiteCommissioning>(`/tenants/${t}/sites/${site.id}/commissioning`) : Promise.resolve(null)), [api, t, site?.id])
   const [dialog, setDialog] = useState<'start' | 'end' | null>(null)
+  const [opened, setOpened] = useState<{ d: DoorCommissioning; sign: boolean } | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   if (sites.error || doors.error) return <ErrorText>{sites.error || doors.error}</ErrorText>
@@ -103,6 +106,10 @@ export function DoorsPage() {
       {note && <p className="ph-banner ph-banner-info" role="status">{note}</p>}
       <ErrorText>{error}</ErrorText>
       {active && <LockdownPanel lockdown={active} canEnd={can('entry.lockdown')} onEnd={() => setDialog('end')} />}
+      {opened && site && commissioning.data && (opened.sign
+        ? <CommissionDialog base={`/tenants/${t}/sites/${site.id}`} d={opened.d} choices={commissioning.data} onClose={() => setOpened(null)} onSaved={commissioning.reload} />
+        : <RecordDialog base={`/tenants/${t}/sites/${site.id}`} d={opened.d} choices={commissioning.data} canVoid={can('entry.config.manage')}
+            onClose={() => setOpened(null)} onChanged={commissioning.reload} />)}
       {dialog && site && <LockdownDialog base={`/tenants/${t}/sites/${site.id}`} siteName={site.name} doors={doors.data} ending={dialog === 'end'}
         onClose={() => setDialog(null)} onDone={lockdowns.reload} />}
       {doors.data.length === 0 ? (
@@ -110,13 +117,22 @@ export function DoorsPage() {
       ) : (
         <div className="ph-table-wrap">
           <table className="ph-table pe-table">
-            <thead><tr><th>Door</th><th>Unlocked by schedule</th><th>Timing</th><th></th></tr></thead>
+            <thead><tr><th>Door</th><th>Unlocked by schedule</th><th>Timing</th><th>Commissioning</th><th></th></tr></thead>
             <tbody>
               {doors.data.map((d) => (
                 <tr key={d.id}>
                   <td className="pe-who" data-label="Door"><strong>{d.name}</strong></td>
                   <td data-label="Schedule">{unlocking(d) ?? <span className="ph-hint">No: locked unless someone has access</span>}</td>
                   <td data-label="Timing">{d.access_time_s} s to open; alarm after {d.open_too_long_s} s</td>
+                  <td data-label="Commissioning">{(() => {
+                    const c = commissioning.data?.doors.find((x) => x.door_id === d.id)
+                    if (!c) return null
+                    const sign = !c.in_service && can('entry.config.manage')
+                    return (
+                      <button className="ph-btn ph-btn-ghost ph-btn-sm pe-badge-btn" aria-label={`${d.name}: ${sign ? 'commission' : 'commissioning record'}`}
+                        onClick={() => setOpened({ d: c, sign })}><CommissioningBadge d={c} /></button>
+                    )
+                  })()}</td>
                   <td data-label="">{lockedDown.has(d.id) ? <span className="ph-hint">Locked down</span> : can('entry.door.unlock') && (
                     <button className="ph-btn ph-btn-secondary ph-btn-sm" onClick={() => void act(() => api.post(`/tenants/${t}/doors/${d.id}/action`, { action: 'access' }), `${d.name}: opening for ${d.access_time_s} seconds.`)}>
                       Open now
