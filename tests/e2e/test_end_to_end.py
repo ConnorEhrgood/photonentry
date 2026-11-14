@@ -13,6 +13,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
+import httpx
 import pytest
 import uvicorn
 
@@ -24,7 +25,8 @@ from app.link.store import MemoryStore
 from app.main import create_app
 from axis_sim.device import Device
 from axis_sim.server import SimClock, run
-from tests.fixtures.site import site
+from app.events import normalize
+from tests.fixtures.site import INTERCOM_SECRET, site
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 BINARY = os.path.join(ROOT, "acap", "entry-link", "build", "entry-link")
@@ -89,7 +91,9 @@ def world(binary, tmp_path):
     cloud.start()
     state = tmp_path / "state"
     log = open(tmp_path / "entry-link.log", "w")
+    local_port = free_port()
     env = dict(os.environ, ENTRY_LINK_CLOUD=f"http://127.0.0.1:{cloud.port}", ENTRY_LINK_STATE_DIR=str(state),
+               ENTRY_LINK_LOCAL_BIND="127.0.0.1", ENTRY_LINK_LOCAL_PORT=str(local_port),
                ENTRY_LINK_VAPIX=f"http://127.0.0.1:{sim_port}", ENTRY_LINK_VAPIX_USER="root", ENTRY_LINK_VAPIX_PASS="pass",
                ENTRY_LINK_MODEL="AXIS A1610", ENTRY_LINK_SERIAL=MAC.upper(), ENTRY_LINK_FIRMWARE="12.6.1", ENTRY_LINK_EVENT_POLL_MS="100")
     procs = []
@@ -101,6 +105,7 @@ def world(binary, tmp_path):
 
     w = type("World", (), {})()
     w.device, w.clock, w.cloud, w.start_link, w.state, w.log_path = device, clock, cloud, start_link, state, tmp_path / "entry-link.log"
+    w.local_port = local_port
     w.proc = start_link()
     yield w
     for p in procs:
@@ -293,3 +298,90 @@ def test_a_disabled_controller_stops_syncing(world):
     time.sleep(2.0)
     assert w.cloud.store.get(cid).last_seen == seen                    # no more syncs, only hellos (which do not count as syncs)
     assert "disabled" in w.log_path.read_text()
+
+
+# ---- the intercoms' endpoint (BUILD-GUIDE §5): unlock from a call, action URLs ----
+
+
+def local(w, path: str, auth=None):
+    r = httpx.get(f"http://127.0.0.1:{w.local_port}{path}", auth=auth, timeout=5)
+    return r.status_code, r.text
+
+
+def raw(w, data: bytes) -> str:
+    with socket.create_connection(("127.0.0.1", w.local_port), timeout=5) as c:
+        c.sendall(data)
+        return c.recv(200).decode(errors="replace").split("\r\n")[0]
+
+
+def test_unlock_from_an_intercom_call_and_its_events(world):
+    w = world
+    cid = claim(w)
+    at(w, "2026-11-15 10:00")                          # Sunday: the front door is locked (its unlock schedule is office hours)
+    publish(w, cid)
+    assert w.device.runtime[DOOR1].mode == "Locked"
+    assert local(w, "/health") == (200, "entry-link 0.1.0")
+    until(lambda: w.cloud.store.get(cid).health.get("local_endpoint") == f"127.0.0.1:{w.local_port}", "the endpoint in the health report")
+
+    # The wrong key, an unknown intercom, no login: refused, and the door stays locked.
+    assert local(w, "/v1/relay", ("ic-front", "not-the-secret"))[0] == 401
+    assert local(w, "/v1/relay", ("ic-side", INTERCOM_SECRET))[0] == 401
+    assert local(w, "/v1/relay")[0] == 401
+    assert w.device.runtime[DOOR1].mode == "Locked"
+
+    # Akuvox's web relay: the intercom's id and key as the login. The controller opens the door for its access time.
+    assert local(w, "/v1/relay?remote=sip%3A101%40pbx", ("ic-front", INTERCOM_SECRET)) == (200, "opened")
+    assert w.device.runtime[DOOR1].mode == "Accessed"
+    # Action URLs: the key as a parameter.
+    assert local(w, f"/v1/event?intercom=ic-front&key={INTERCOM_SECRET}&kind=tamper")[0] == 200
+    assert local(w, f"/v1/event?intercom=ic-front&key={INTERCOM_SECRET}&kind=call_start&remote=101")[0] == 200
+    assert local(w, f"/v1/event?intercom=ic-front&key={INTERCOM_SECRET}&kind=reboot")[0] == 400
+    assert local(w, "/v1/nothing")[0] == 404
+
+    want = ["PhotonEntry/Intercom/Refused", "PhotonEntry/Intercom/Unlock", "PhotonEntry/Intercom/Tamper", "PhotonEntry/Intercom/CallStarted"]
+    until(lambda: all(t in topics(w, cid) for t in want), "the intercom's events in the cloud")
+    events = w.cloud.store.events(cid)
+    assert [e.seq for e in events] == list(range(1, len(events) + 1))            # numbered with the controller's own, once, in order
+    assert sum(e.topic == "PhotonEntry/Intercom/Refused" for e in events) == 1     # three refusals in a minute: one event
+    unlock = next(e for e in events if e.topic == "PhotonEntry/Intercom/Unlock")
+    assert unlock.source == {"DoorToken": DOOR1, "IntercomId": "ic-front"} and unlock.data == {"Caller": "sip:101@pbx", "Result": "ok"}
+    n = normalize(unlock.topic, unlock.data)
+    assert (n.kind, n.method, n.label) == ("granted", "intercom", "Opened from the intercom")
+    assert normalize("PhotonEntry/Intercom/Tamper", {}).kind == "intercom_tamper"
+
+    # Requests that are not what an intercom sends.
+    assert raw(w, b"POST /v1/relay HTTP/1.1\r\n\r\n") == "HTTP/1.1 405 Method Not Allowed"
+    assert raw(w, b"GET /v1/relay HTTP/1.1\r\nX: " + b"a" * 5000 + b"\r\n\r\n") == "HTTP/1.1 431 Request Header Fields Too Large"
+    assert raw(w, b"nonsense\r\n\r\n") == "HTTP/1.1 400 Bad Request"
+    assert raw(w, b"GET /v1/relay?key=%zz HTTP/1.1\r\n\r\n") == "HTTP/1.1 400 Bad Request"
+
+    # Ten refusals in a minute: everything is refused for the rest of it, even the right key.
+    for _ in range(10):
+        local(w, "/v1/relay", ("ic-front", "guess"))
+    assert local(w, "/v1/relay", ("ic-front", INTERCOM_SECRET))[0] == 429
+
+
+def test_unlock_from_a_call_needs_no_cloud(world):
+    w = world
+    cid = claim(w)
+    at(w, "2026-11-15 10:00")
+    publish(w, cid)
+    w.cloud.stop()
+    assert local(w, "/v1/relay", ("ic-front", INTERCOM_SECRET)) == (200, "opened")
+    assert w.device.runtime[DOOR1].mode == "Accessed"
+    w.cloud.start()
+    until(lambda: "PhotonEntry/Intercom/Unlock" in topics(w, cid), "the unlock, once the cloud is back")
+
+
+def test_a_controller_fault_is_reported_to_the_intercom_and_the_cloud(world):
+    w = world
+    cid = claim(w)
+    at(w, "2026-11-15 10:00")
+    publish(w, cid)
+    with w.device.lock:
+        w.device.access_door(DOOR1)                    # warm-up: the door works
+    cmd = w.cloud.store.command(cid, "lockdown", DOOR1, "Jane", datetime.now(timezone.utc))
+    until(lambda: w.cloud.store.command_state(cmd.id).done, "the lockdown")
+    assert local(w, "/v1/relay", ("ic-front", INTERCOM_SECRET))[0] == 503         # locked down: the controller refuses, and so do we
+    until(lambda: any(e.topic == "PhotonEntry/Intercom/Unlock" and e.data.get("Result") == "failed" for e in w.cloud.store.events(cid)),
+          "the failed unlock in the cloud")

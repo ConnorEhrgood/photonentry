@@ -324,3 +324,37 @@ class ConsoleFeedToken(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+# ---- 5. intercoms (Step 5) ----
+
+
+class Intercom(Base):
+    """An intercom at a door (ARCHITECTURE §3.4): it reads cards for the door's controller by Wiegand, takes calls through PhotonVox, and opens
+    the door from a call through `entry-link` on that controller ("web relay"). Its settings come from our provisioning server
+    (app/akuvox.py): the device fetches `<MAC>.cfg` from its own address, which holds `provision_token`. Every secret is random, made here, and
+    sealed (app/crypto.py); admins at the site see them, nobody else."""
+    __tablename__ = "intercom"
+    id: Mapped[uuid.UUID] = mapped_column(UUIDT, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUIDT, index=True)
+    site_id: Mapped[uuid.UUID] = mapped_column(UUIDT, index=True)
+    door_id: Mapped[uuid.UUID] = mapped_column(UUIDT)
+    name: Mapped[str] = mapped_column(String(64))
+    model: Mapped[str] = mapped_column(String(32))                              # app/akuvox.py MODELS
+    mac: Mapped[str] = mapped_column(String(12), unique=True)                   # 12 upper-case hex digits
+    relay_address: Mapped[str] = mapped_column(String(80), default="")          # entry-link as the intercom reaches it; "" = the controller's report
+    sip_server: Mapped[str] = mapped_column(String(255), default="")
+    sip_port: Mapped[int] = mapped_column(Integer, default=5061)
+    sip_transport: Mapped[str] = mapped_column(String(3), default="tls")        # udp | tcp | tls
+    sip_user: Mapped[str] = mapped_column(String(64), default="")
+    sip_password_sealed: Mapped[str] = mapped_column(Text, default="")
+    relay_secret_sealed: Mapped[str] = mapped_column(Text)                      # the web relay's password, also the action URLs' key
+    admin_password_sealed: Mapped[str] = mapped_column(Text)                    # the intercom's web page (user admin)
+    provision_token_sealed: Mapped[str] = mapped_column(Text)
+    provision_token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUIDT)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_fetch_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_fetch_ip: Mapped[str] = mapped_column(String(64), default="")
+    __table_args__ = (CheckConstraint("sip_transport in ('udp', 'tcp', 'tls')", name="ck_intercom_transport"),
+                      CheckConstraint("mac ~ '^[0-9A-F]{12}$'", name="ck_intercom_mac"))

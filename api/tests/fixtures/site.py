@@ -4,6 +4,7 @@ Controller `ctl-a` (an A1610) has doors `door-a1` (front, two readers) and `door
 """
 from __future__ import annotations
 
+import hashlib
 from datetime import date, datetime, timezone
 from uuid import UUID
 
@@ -13,6 +14,10 @@ from app.link.protocol import Inventory, InventoryDoor
 INVENTORY_A = Inventory(doors=[InventoryDoor(token="door-a1", name="Door 1", access_points=["ap-a1-in", "ap-a1-out"]),
                                InventoryDoor(token="door-a2", name="Door 2", access_points=["ap-a2-in"])])
 INVENTORY_B = Inventory(doors=[InventoryDoor(token="door-b1", name="Door 1", access_points=["ap-b1-in"])])
+
+
+INTERCOM_SECRET = "front-intercom-secret"
+INTERCOM_SHA256 = hashlib.sha256(INTERCOM_SECRET.encode()).hexdigest()
 
 
 def site(**over) -> SiteDocument:
@@ -48,6 +53,8 @@ def site(**over) -> SiteDocument:
              "credentials": [{"id": "carol-card", "kind": "card", "card": {"format": "raw", "number": 0xABCDEF}}]},
             {"id": "dave", "name": "Dave Visitor", "groups": [], "credentials": [{"id": "dave-pin", "kind": "pin", "pin": "1111"}]},
         ],
+        # The front door's intercom; its relay password is "front-intercom-secret" (INTERCOM_SECRET).
+        "intercoms": [{"id": "ic-front", "name": "Front door intercom", "door_id": "front", "secret_sha256": INTERCOM_SHA256}],
     }
     doc.update(over)
     return SiteDocument.model_validate(doc)

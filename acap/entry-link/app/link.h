@@ -5,6 +5,8 @@
  *                   reads the controller's inventory at start and every ten minutes.
  *   events thread   every second reads new events from the controller's log into the queue and, when there is anything queued or any
  *                   command result to report, sends it (wait=false).
+ *   local thread    the endpoint on the building's network for the intercoms at our doors (local.h): unlock from a call, tamper and calls.
+ *                   Its events join the same queue, numbered like the controller's own.
  *
  * Either thread may receive settings or commands in its reply (the cloud answers every sync), so both handle replies the same way, under one
  * lock. Nothing here takes part in an access decision: if this program stops, the controller goes on deciding alone. */
@@ -19,6 +21,8 @@ typedef struct {
     const char *vapix_pass;
     const char *model, *serial, *firmware;
     int event_poll_ms;
+    const char *local_bind;     /* the intercoms' endpoint: address and port (0: off) */
+    int local_port;
 } link_config;
 
 /* Runs until a SIGTERM or SIGINT; returns the process exit status. */

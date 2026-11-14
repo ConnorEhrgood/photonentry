@@ -5,7 +5,7 @@
   "description": "Written by api/app/compiler/axis.py, applied by acap/entry-link. Every object is in the shape of Axis's access-control services (axsch Schedule, axudb User, pacsaxis AccessProfile and Credential, axtdc Door fields and DoorScheduleConfiguration). Only tokens beginning 'pe-' belong to PhotonEntry; doors are the controller's own and only the listed fields are set on them.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["format", "controller_id", "site_id", "timezone", "schedules", "users", "access_profiles", "credentials", "doors", "door_schedules"],
+  "required": ["format", "controller_id", "site_id", "timezone", "schedules", "users", "access_profiles", "credentials", "doors", "door_schedules", "intercoms"],
   "$defs": {
     "token": {"type": "string", "pattern": "^pe-[a-z]-[A-Za-z0-9_-]{1,40}$"},
     "foreign": {"type": "string", "minLength": 1, "maxLength": 64},
@@ -77,6 +77,13 @@
             "type": "object", "additionalProperties": false, "required": ["ScheduleToken", "EnterAction"],
             "properties": {"ScheduleToken": {"type": "array", "items": {"$ref": "#/$defs/foreign"}, "minItems": 1},
                            "EnterAction": {"enum": ["Unlock", "Lock"]}}}}}}}
+      }}},
+    "intercoms": {"type": "array", "description": "For entry-link itself, not the controller: the intercoms at this controller's doors, whose web relay and action URLs it accepts (ARCHITECTURE §3.4). Only the SHA-256 of each relay password is sent.",
+      "items": {
+      "type": "object", "additionalProperties": false, "required": ["id", "name", "door", "secret_sha256"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,40}$"}, "name": {"$ref": "#/$defs/name"}, "door": {"$ref": "#/$defs/foreign"},
+        "secret_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
       }}}
   }
 }

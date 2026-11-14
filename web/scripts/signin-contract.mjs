@@ -41,7 +41,10 @@ async function person(tag, password) {
 }
 
 // -- the app ---------------------------------------------------------------------------------------------------------------------------------------
-const preview = spawn('npx', ['vite', 'preview', '--port', '5193', '--strictPort'], { cwd: new URL('..', import.meta.url).pathname, stdio: 'ignore' })
+// Its own process group, so stopping it stops vite too (killing npx alone leaves vite holding the port).
+const preview = spawn('npx', ['vite', 'preview', '--port', '5193', '--strictPort'], { cwd: new URL('..', import.meta.url).pathname, stdio: 'ignore', detached: true })
+const stopPreview = () => { try { process.kill(-preview.pid) } catch { /* already gone */ } }
+process.on('exit', stopPreview)
 for (let i = 0; i < 60; i++) { try { if ((await fetch(APP)).ok) break } catch { /* not up yet */ } await sleep(250) }
 
 let api = 'ok' // what the faked PhotonEntry API answers on /me: ok | unauth | forbidden | pending | none (signed in, no organization)
@@ -236,5 +239,5 @@ try {
   for (const id of made) await zitadel('DELETE', `/v2/users/${id}`).catch((e) => console.error(`could not delete ${id}: ${e.message}`))
   console.log(`cleanup: ${made.length} test person(s) deleted`)
   await browser.close()
-  preview.kill()
+  stopPreview()
 }

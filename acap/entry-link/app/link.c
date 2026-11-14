@@ -1,7 +1,11 @@
 #define _GNU_SOURCE
 #include "link.h"
 
+#include <arpa/inet.h>
 #include <errno.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
+#include <openssl/crypto.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
@@ -14,6 +18,7 @@
 #include "../../vendor/cjson/cJSON.h"
 #include "apply.h"
 #include "http.h"
+#include "local.h"
 #include "queue.h"
 #include "sign.h"
 #include "util.h"
@@ -26,6 +31,7 @@
 #define RETRY_FAILED_S 60
 #define REAPPLY_S 3600
 #define INVENTORY_S 600
+#define LOCAL_MAX_FAILS 10              /* refused intercom requests per minute before every request is refused for the rest of it */
 
 enum { SYNC_OK = 0, SYNC_NETWORK = -1, SYNC_PENDING = 1, SYNC_DISABLED = 2, SYNC_REFUSED = 3 };
 
@@ -51,6 +57,7 @@ typedef struct {
     char *inventory_sent;                /* the inventory as last delivered */
     cJSON *inventory;                    /* the inventory as last read */
     time_t inventory_at, started;
+    char local_endpoint[80];             /* "10.152.0.20:8742" while the intercoms' endpoint is open */
 } link_state;
 
 /* -- state on disk --------------------------------------------------------------------------------------------------------------------------- */
@@ -270,6 +277,7 @@ static int sync_once(link_state *s, http_client *http, vapix *v, int wait, int w
     char clock[32];
     now_iso(clock, sizeof clock);
     cJSON_AddStringToObject(health, "clock", clock);
+    if (s->local_endpoint[0]) cJSON_AddStringToObject(health, "local_endpoint", s->local_endpoint);
     cJSON_AddBoolToObject(req, "wait", wait && sent_events == 0);
     char *body = cJSON_PrintUnformatted(req);
     cJSON_Delete(req);
@@ -496,6 +504,175 @@ static void *control_thread(void *arg) {
     return NULL;
 }
 
+/* -- the intercoms' endpoint (local.h) ------------------------------------------------------------------------------------------------------ */
+
+typedef struct {
+    link_state *s;
+    vapix v;
+    int fails;                  /* refused requests in the current minute */
+    time_t fail_window, refused_noted;
+} local_ctx;
+
+/* Queue an event of our own (not from the controller's log), numbered with the controller's. Takes ownership of source and data. */
+static void record_local(link_state *s, const char *topic, cJSON *source, cJSON *data) {
+    pthread_mutex_lock(&s->mu);
+    if (queue_size(&s->queue) >= QUEUE_CAP) {
+        LOG_WARN("event queue full; %s not recorded", topic);
+        cJSON_Delete(source);
+        cJSON_Delete(data);
+    } else {
+        cJSON *ev = cJSON_CreateObject();
+        cJSON_AddNumberToObject(ev, "seq", (double)s->next_seq);
+        char clock[32];
+        now_iso(clock, sizeof clock);
+        cJSON_AddStringToObject(ev, "occurred_at", clock);
+        cJSON_AddStringToObject(ev, "topic", topic);
+        cJSON_AddItemToObject(ev, "source", source);
+        cJSON_AddItemToObject(ev, "data", data);
+        cJSON_AddStringToObject(ev, "ref", "");
+        if (queue_push(&s->queue, ev) == 0) {
+            s->next_seq++;
+            save_state(s);
+        }
+    }
+    pthread_mutex_unlock(&s->mu);
+}
+
+/* The intercom `id` proves itself with `key` (its relay password; the settings carry only its SHA-256). Copies its door's token into `door`.
+ * 1 if it is ours and the key matches. Called with the lock held. */
+static int intercom_ok(link_state *s, const char *id, const char *key, char *door, size_t size) {
+    if (!id || !key || !id[0] || !key[0]) return 0;
+    char hash[65];
+    sha256_hex((const unsigned char *)key, strlen(key), hash);
+    const cJSON *doc = cJSON_GetObjectItemCaseSensitive(s->settings, "document");
+    const cJSON *ic;
+    cJSON_ArrayForEach(ic, cJSON_GetObjectItemCaseSensitive(doc, "intercoms")) {
+        const cJSON *i = cJSON_GetObjectItemCaseSensitive(ic, "id"), *h = cJSON_GetObjectItemCaseSensitive(ic, "secret_sha256");
+        const cJSON *d = cJSON_GetObjectItemCaseSensitive(ic, "door");
+        if (!cJSON_IsString(i) || !cJSON_IsString(h) || !cJSON_IsString(d) || strcmp(i->valuestring, id) != 0) continue;
+        if (strlen(h->valuestring) != 64 || CRYPTO_memcmp(h->valuestring, hash, 64) != 0) return 0;
+        snprintf(door, size, "%s", d->valuestring);
+        return 1;
+    }
+    return 0;
+}
+
+static void reply(local_response *res, int status, const char *body) {
+    res->status = status;
+    snprintf(res->body, sizeof res->body, "%s", body);
+}
+
+static void local_handle(void *arg, const local_request *req, local_response *res) {
+    local_ctx *c = arg;
+    link_state *s = c->s;
+    if (strcmp(req->path, "/health") == 0) {
+        reply(res, 200, "entry-link " APP_VERSION);
+        return;
+    }
+    int relay = strcmp(req->path, "/v1/relay") == 0, event = strcmp(req->path, "/v1/event") == 0;
+    if (!relay && !event) {
+        reply(res, 404, "not found");
+        return;
+    }
+    time_t now = time(NULL);
+    if (now - c->fail_window >= 60) {
+        c->fail_window = now;
+        c->fails = 0;
+    }
+    if (c->fails >= LOCAL_MAX_FAILS) {
+        reply(res, 429, "too many refused requests; try again in a minute");
+        return;
+    }
+    /* Akuvox's web relay sends the intercom's id and key as the request's login; action URLs carry them as parameters. */
+    const char *id = req->user[0] ? req->user : local_param(req, "intercom");
+    const char *key = req->user[0] ? req->pass : local_param(req, "key");
+    char door[80] = "";
+    pthread_mutex_lock(&s->mu);
+    int ok = intercom_ok(s, id, key, door, sizeof door);
+    pthread_mutex_unlock(&s->mu);
+    if (!ok) {
+        c->fails++;
+        LOG_WARN("intercom request from %s refused (%s)", req->peer, id && id[0] ? "wrong key or unknown intercom" : "no login");
+        if (now - c->refused_noted >= 60) {     /* one event a minute at most: a misconfigured intercom must not flood the queue */
+            c->refused_noted = now;
+            cJSON *src = cJSON_CreateObject(), *data = cJSON_CreateObject();
+            cJSON_AddStringToObject(src, "IntercomId", id ? id : "");
+            cJSON_AddStringToObject(data, "Peer", req->peer);
+            record_local(s, "PhotonEntry/Intercom/Refused", src, data);
+        }
+        reply(res, 401, "unknown intercom or wrong key");
+        return;
+    }
+    const char *remote = local_param(req, "remote");
+    cJSON *src = cJSON_CreateObject(), *data = cJSON_CreateObject();
+    cJSON_AddStringToObject(src, "DoorToken", door);
+    cJSON_AddStringToObject(src, "IntercomId", id);
+    if (remote && remote[0]) cJSON_AddStringToObject(data, "Caller", remote);
+    if (relay) {
+        cJSON *msg = cJSON_CreateObject();
+        cJSON_AddStringToObject(msg, "Token", door);
+        cJSON *out = vapix_call(&c->v, "doorcontrol", "tdc:AccessDoor", msg);
+        cJSON_AddStringToObject(data, "Result", out ? "ok" : "failed");
+        if (!out) cJSON_AddStringToObject(data, "Fault", c->v.fault);
+        LOG_INFO("intercom %s: unlock %s: %s", id, door, out ? "done" : c->v.fault);
+        cJSON_Delete(out);
+        record_local(s, "PhotonEntry/Intercom/Unlock", src, data);
+        if (out) reply(res, 200, "opened");
+        else reply(res, 503, "the controller did not open the door");
+        return;
+    }
+    static const struct { const char *kind, *topic; } KINDS[] = {
+        {"tamper", "PhotonEntry/Intercom/Tamper"}, {"call_start", "PhotonEntry/Intercom/CallStarted"},
+        {"call_end", "PhotonEntry/Intercom/CallEnded"},
+    };
+    const char *kind = local_param(req, "kind");
+    for (size_t i = 0; kind && i < sizeof KINDS / sizeof KINDS[0]; i++) {
+        if (strcmp(kind, KINDS[i].kind) == 0) {
+            record_local(s, KINDS[i].topic, src, data);
+            reply(res, 200, "recorded");
+            return;
+        }
+    }
+    cJSON_Delete(src);
+    cJSON_Delete(data);
+    reply(res, 400, "kind is one of tamper, call_start, call_end");
+}
+
+/* The first IPv4 address that is not loopback: where the intercoms reach us (reported in health so the cloud can provision them). */
+static void lan_address(char *out, size_t size) {
+    struct ifaddrs *list, *i;
+    out[0] = '\0';
+    if (getifaddrs(&list) != 0) return;
+    for (i = list; i; i = i->ifa_next) {
+        if (!i->ifa_addr || i->ifa_addr->sa_family != AF_INET) continue;
+        struct in_addr a = ((struct sockaddr_in *)i->ifa_addr)->sin_addr;
+        if ((ntohl(a.s_addr) >> 24) == 127) continue;
+        inet_ntop(AF_INET, &a, out, (socklen_t)size);
+        break;
+    }
+    freeifaddrs(list);
+}
+
+static void *local_thread(void *arg) {
+    link_state *s = arg;
+    local_ctx c = {.s = s, .v = {s->cfg->vapix_base, s->cfg->vapix_user, s->cfg->vapix_pass, http_client_new(), ""}};
+    while (!stopping) {
+        char ip[INET_ADDRSTRLEN];
+        lan_address(ip, sizeof ip);
+        pthread_mutex_lock(&s->mu);
+        if (strcmp(s->cfg->local_bind, "0.0.0.0") != 0) snprintf(ip, sizeof ip, "%s", s->cfg->local_bind);
+        if (ip[0]) snprintf(s->local_endpoint, sizeof s->local_endpoint, "%s:%d", ip, s->cfg->local_port);
+        pthread_mutex_unlock(&s->mu);
+        if (local_serve(s->cfg->local_bind, s->cfg->local_port, local_handle, &c, &stopping) == 0) break;
+        pthread_mutex_lock(&s->mu);
+        s->local_endpoint[0] = '\0';
+        pthread_mutex_unlock(&s->mu);
+        for (int i = 0; i < 30 && !stopping; i++) nap_ms(1000);      /* the port is taken: try again */
+    }
+    http_client_free(c.v.http);
+    return NULL;
+}
+
 int link_run(const link_config *cfg) {
     link_state *s = calloc(1, sizeof *s);
     s->cfg = cfg;
@@ -522,9 +699,10 @@ int link_run(const link_config *cfg) {
     sigaction(SIGINT, &sa, NULL);
     signal(SIGPIPE, SIG_IGN);
 
-    pthread_t a, b;
+    pthread_t a, b, c;
     pthread_create(&a, NULL, control_thread, s);
     pthread_create(&b, NULL, events_thread, s);
+    if (cfg->local_port > 0) pthread_create(&c, NULL, local_thread, s);
     while (!stopping) nap_ms(200);
     /* Everything that matters is on disk already; a held long-poll is simply abandoned. */
     LOG_INFO("stopping");

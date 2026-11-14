@@ -7,6 +7,7 @@ import { SitePicker, useSite, useSites } from '../components/sites'
 import { ConfirmButton, ErrorText, Loading, PageHeader, StatusBadge } from '../components/ui'
 import { ago } from '../lib/format'
 import { useLoad } from '../lib/useLoad'
+import { IntercomsSection } from './Intercoms'
 
 /** How a controller is doing, in a word: offline, refusing its settings, applying them, or fine. Never colour alone (DESIGN.md). */
 export function controllerState(c: Controller, now = Date.now()): { tone: 'ok' | 'info' | 'warning' | 'error'; text: string } {
@@ -123,6 +124,7 @@ export function DoorsPage() {
           </table>
         </div>
       )}
+      {can('entry.config.manage') && site && doors.data.length > 0 && <IntercomsSection base={`/tenants/${t}/sites/${site.id}`} doors={doors.data} />}
     </>
   )
 }

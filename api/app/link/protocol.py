@@ -70,6 +70,8 @@ class Health(_Msg):
     uptime_s: int = Field(default=0, ge=0)
     queued_events: int = Field(default=0, ge=0, description="Events read from the controller and not yet acknowledged")
     clock: Optional[datetime] = None
+    local_endpoint: str = Field(default="", max_length=80, description="Where the intercoms reach entry-link on the building's network "
+                                "(address:port), while that endpoint is open")
 
 
 class SyncRequest(_Msg):

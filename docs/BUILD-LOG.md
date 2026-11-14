@@ -266,3 +266,40 @@ PhotonEntry API is faked in the browser so each answer can be forced.
 
 **Not covered here:** PhotonID's own pages (password reset, authenticator app, invitations, sign-up), which PhotonID's contract tests.
 Against the real PhotonEntry API: needs the API running with the dev issuer and the "entry" product in the directory catalogue (id1).
+
+## 2026-11-14: Step 5, part 1: intercoms and the Akuvox provisioning server
+
+**Research first** (`sim/reference/AKUVOX-AUTOP.md`, public Akuvox documents only, no contact): the Autop file names and keys for SIP,
+Wiegand, the web relay, action URLs and the local relay, with a bench checklist. Two findings changed the plan:
+- **No file encryption for now.** The AES scheme of Akuvox's provisioning files (mode, padding, IV) is published nowhere; a wrong guess leaves
+  the intercom unable to read its settings. Files are served over HTTPS at an address holding a per-intercom random token. Bench item.
+- **The web relay offers only no authentication or Digest**, so its action is a full URL with the intercom's id and key as parameters.
+
+**Built:**
+- **Intercoms** (`intercom` table, migration 0003; `app/routes/intercoms.py`): admins at the site add one at a door (model, MAC, SIP account
+  typed in until PhotonVox has door stations). PhotonEntry makes its relay key, admin password and provisioning token, sealed. The setup view
+  (audited) shows the provisioning address, the admin password and the unlock code. Row-level security: admins at the site only. A door with an
+  intercom cannot be removed.
+- **The provisioning server** (`GET /provision/v1/<token>/<file>`, `app/akuvox.py`, both CRITICAL): the model's general file (empty) and
+  `<MAC>.cfg` for the intercom's own MAC only; the same 404 for every miss; 30 requests a minute per address. The file: SIP account, 34-bit
+  Wiegand out with the card check off, every path to the intercom's own relay off, the web relay to entry-link, call and tamper action URLs,
+  a random admin password, hourly provisioning.
+- **entry-link's intercom endpoint** (`app/local.c`, a third thread): a small HTTP server on the building's network (GET only, a 4 KB head
+  read within 3 s, one connection at a time). `/v1/relay` opens the intercom's door through the controller (`tdc:AccessDoor`), `/v1/event`
+  records a call or tamper. The intercom proves itself with its key (as parameters or a Basic login) against the SHA-256 in the settings
+  (`intercoms`, new in the settings contract). Ten refusals in a minute refuse everything for the rest of it; refusals are recorded once a
+  minute. Its events (`PhotonEntry/Intercom/...`) join the controller's in the same numbered queue. No internet needed. The controller
+  reports where the endpoint is (`local_endpoint` in health), which the provisioning file uses.
+- **Events:** "Opened from the intercom" is a grant (to Guard with a clip, like any grant); intercom tamper is an instant critical event in
+  Guard (Akuvox never reports its end); calls and refusals stay in PhotonEntry.
+- **Web:** an Intercoms section on Doors for admins: add, change, remove, and the setup values.
+
+**Verified:** 469 Python tests (24 new: the file, the provisioning server, routes, row-level security, events, and end to end with the real C
+entry-link against the simulator: unlock by the web relay, refusals, the limit, malformed requests, a controller refusing, and the cloud away)
+and 148 web tests; 23 CRITICAL modules at 100% branch coverage. Screenshots at the three sizes, looked at; the action buttons' cell was fixed.
+
+**Not verified:** anything on a real Akuvox (bench checklist, AKUVOX-AUTOP.md §6) or Axis controller (an ACAP app listening on its own port
+must also be allowed by the controller's firewall; the alternative is Axis's reverse proxy, Step 7).
+
+**Also:** the sign-in contract's `vite preview` was left running after a run (killing `npx` does not stop vite); it now runs in its own process
+group and is stopped with it.

@@ -11,6 +11,7 @@ What each part of the document becomes on the controller:
 | credential | `pacsaxis` Credential `pe-c-<id>`: `Card` (the reader's raw hex) or `PIN`; validity from both the cardholder and the credential; the cardholder's groups as CredentialAccessProfiles |
 | door timings | `axtdc` Door fields AccessTime, OpenTooLongTime, PreAlarmTime of the controller's door |
 | door unlock schedule | `axtdc` DoorScheduleConfiguration `pe-d-<id>` (Unlock during the schedule, Lock otherwise), linked from the door's configuration |
+| intercom | nothing on the controller: `intercoms`, for `entry-link` itself (its id, its door's token and the SHA-256 of its relay password) |
 
 **Only objects whose token starts with `pe-` belong to PhotonEntry.** `entry-link` creates, replaces and removes those, and never touches others
 (Axis's own defaults such as `standard_always`, the controller's doors, access points, readers and authentication profiles, which are set up when
@@ -135,9 +136,13 @@ def compile_controller(doc: SiteDocument, controller_id: str, inventory: Optiona
         schedules.append({"token": f"{PREFIX}s-{s.id}", "Name": s.name, "Description": "", "Attribute": [],
                           "ScheduleDefinition": ical.weekly(s.windows), "ExceptionScheduleDefinition": exception})
 
+    door_tokens = {d.id: d.controller_door for d in doors}
+    intercoms = [{"id": i.id, "name": i.name, "door": door_tokens[i.door_id], "secret_sha256": i.secret_sha256}
+                 for i in sorted(doc.intercoms, key=lambda i: i.id) if i.door_id in door_tokens]
+
     return {"format": FORMAT, "controller_id": controller_id, "site_id": doc.site_id, "timezone": doc.timezone,
             "schedules": schedules, "users": users, "access_profiles": profiles, "credentials": credentials,
-            "doors": door_settings, "door_schedules": door_schedules}
+            "doors": door_settings, "door_schedules": door_schedules, "intercoms": intercoms}
 
 
 def _credential(ch: Cardholder, k: Credential, groups: List[str]) -> Dict[str, Any]:

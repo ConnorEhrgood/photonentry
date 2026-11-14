@@ -97,6 +97,17 @@ class Door(_Strict):
     _id = field_validator("id")(_check_id)
 
 
+class Intercom(_Strict):
+    """An intercom at a door (ARCHITECTURE §3.4). It reads cards for the controller by Wiegand and takes calls; unlock from a call goes to
+    `entry-link` on the door's controller, which knows the intercom by `id` and checks its relay password against `secret_sha256`."""
+    id: str
+    name: str = Field(min_length=1, max_length=64)
+    door_id: str
+    secret_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+    _id = field_validator("id")(_check_id)
+
+
 class Rule(_Strict):
     """These doors, during this schedule (none: at all times)."""
     doors: List[str] = Field(min_length=1)
@@ -176,6 +187,7 @@ class SiteDocument(_Strict):
     doors: List[Door] = Field(default_factory=list)
     access_groups: List[AccessGroup] = Field(default_factory=list)
     cardholders: List[Cardholder] = Field(default_factory=list)
+    intercoms: List[Intercom] = Field(default_factory=list)
 
     def problems(self) -> List[str]:
         """Every reference and uniqueness problem, as plain sentences with a path. Empty: the document can be compiled."""
@@ -193,6 +205,7 @@ class SiteDocument(_Strict):
         unique("access group", [g.id for g in self.access_groups])
         unique("cardholder", [c.id for c in self.cardholders])
         unique("credential", [k.id for c in self.cardholders for k in c.credentials])
+        unique("intercom", [i.id for i in self.intercoms])
 
         schedules = {s.id for s in self.schedules}
         doors = {d.id for d in self.doors}
@@ -205,6 +218,7 @@ class SiteDocument(_Strict):
         for d in self.doors:
             if d.unlock_schedule_id and d.unlock_schedule_id not in schedules:
                 out.append(f"door {d.id}: unlock schedule {d.unlock_schedule_id} does not exist")
+        out.extend(f"intercom {i.id}: door {i.door_id} does not exist" for i in self.intercoms if i.door_id not in doors)
         for g in self.access_groups:
             for n, r in enumerate(g.rules):
                 out.extend(f"access group {g.id} rule {n + 1}: door {x} does not exist" for x in r.doors if x not in doors)

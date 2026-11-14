@@ -21,7 +21,7 @@ from app.deps import Ctx, tenant_ctx
 from app.document import Holiday, Rule, Window
 from app.link.pgstore import notify
 from app.link.protocol import Inventory
-from app.models import AccessGroup, CardholderGroup, Controller, Door, HolidayCalendar, Schedule, SettingsVersion, Site, utcnow
+from app.models import AccessGroup, CardholderGroup, Controller, Door, HolidayCalendar, Intercom, Schedule, SettingsVersion, Site, utcnow
 from app.routes.common import log, not_found, problem, site_of
 from app import sitedoc, templates
 
@@ -121,6 +121,8 @@ def remove_door(site_id: uuid.UUID, door_id: uuid.UUID, ctx: Ctx = Depends(tenan
     for g in db.execute(select(AccessGroup).where(AccessGroup.site_id == site.id)).scalars():
         if any(str(d.id) in r["doors"] for r in g.rules):
             raise problem({"code": "door_in_use", "detail": f"Access group '{g.name}' opens this door: change the group first"}, 409)
+    for i in db.execute(select(Intercom).where(Intercom.door_id == d.id)).scalars():
+        raise problem({"code": "door_in_use", "detail": f"Intercom '{i.name}' is at this door: move or remove it first"}, 409)
     db.delete(d)
     log(db, ctx, "door.remove", site_id=site.id, target_type="door", target_id=d.id, name=d.name)
     db.commit()

@@ -230,9 +230,13 @@ controller. OSDP works only on some models and is untested with third-party cont
 - **Doors that need a listed system** (special locking: maglocks with sensor release, delayed egress) get a **UL-verified reader** on the Axis
   (A4120-E or Signo 20). The intercom beside it only takes calls (decision 8).
 - **Akuvox settings without SmartPlus** come from our cloud by **auto-provisioning**:
-  - what is set: SIP account, Wiegand mode, card check off, web relay URL, passwords, firmware;
-  - files encrypted per device; HTTPS where the model supports it (verify per model);
-  - the intercom pulls them on power-up and every hour.
+  - what is set: SIP account, Wiegand mode, card check off, web relay URL, passwords (firmware later);
+  - each intercom fetches its own file over HTTPS from an address holding its own random token. **Not encrypted yet** (2026-11-14): Akuvox's
+    file encryption is undocumented in public (mode, padding, IV), and a wrong guess leaves the intercom unable to read its settings. Bench item
+    (sim/reference/AKUVOX-AUTOP.md §6);
+  - the intercom pulls them every hour (and, to verify, at power-up).
+- **The web relay's request** is a full URL to `entry-link` with the intercom's id and key as parameters: Akuvox's web relay offers only no
+  authentication or Digest. `entry-link` keeps only the key's SHA-256 (from the settings) and opens the door through the controller.
 - **Akuvox events** (tamper, calls) go to `entry-link` on the LAN by Akuvox's action URLs. Calls are also known to Vox.
 
 ### 3.5 Other findings

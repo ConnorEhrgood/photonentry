@@ -36,6 +36,15 @@ SCHEMA = json.load(open(os.path.join(ROOT, "contract", "guard", "ingest-event.sc
     ("Door/State/DoorMode", {"State": "Weird"}, "mode", "info", "Door weird"),
     ("Door/State/DoorMode", {}, "mode", "info", "Door changed"),
     ("IdPoint/Activity", {"Reason": "CardPresented"}, "other", "info", "Activity"),
+    # entry-link's own events for the intercoms at its doors
+    ("PhotonEntry/Intercom/Unlock", {"Result": "ok", "Caller": "101"}, "granted", "info", "Opened from the intercom"),
+    ("PhotonEntry/Intercom/Unlock", {"Result": "failed"}, "other", "warning", "Intercom unlock failed: the controller did not open the door"),
+    ("PhotonEntry/Intercom/Tamper", {}, "intercom_tamper", "critical", "Intercom tampered with"),
+    ("PhotonEntry/Intercom/CallStarted", {}, "intercom_call", "info", "Intercom call"),
+    ("PhotonEntry/Intercom/CallEnded", {}, "intercom_call", "info", "Intercom call ended"),
+    ("PhotonEntry/Intercom/Refused", {}, "intercom_refused", "warning", "Intercom request refused: wrong key"),
+    ("PhotonEntry/Intercom/Later", {}, "other", "info", "Later"),
+    ("PhotonEntry/Intercom/", {}, "other", "info", "Event"),
     ("", {}, "other", "info", "Event"),
 ])
 def test_normalize(topic, data, kind, severity, label):
@@ -79,4 +88,16 @@ def test_an_alarm_starts_once_and_ends_under_its_key():
     tamper = msg(ev(7, "Door/State/DoorTamper", {"State": "TamperDetected"}), {"alarm": "entry:alarm:k"})
     assert tamper.opens[0] == "tamper"                                                                    # a tamper is its own alarm
     for p in (start.payload, end.payload, tamper.payload, test_message("x")):
+        jsonschema.validate(p, SCHEMA)
+
+
+def test_the_intercom_opening_a_door_and_its_tamper_go_to_guard_and_calls_do_not():
+    opened = msg(ev(8, "PhotonEntry/Intercom/Unlock", {"Result": "ok"}, ref=""))
+    assert opened.payload["state"] == "instant" and opened.payload["label"] == "Opened from the intercom at Side door" and opened.payload["record"]
+    tamper = msg(ev(9, "PhotonEntry/Intercom/Tamper", ref=""))
+    assert (tamper.payload["state"], tamper.payload["severity"], tamper.opens) == ("instant", "critical", None)   # never left open
+    assert tamper.payload["dedup_key"].endswith(":9") and tamper.payload["label"] == "Intercom tampered with at Side door"
+    for topic in ("PhotonEntry/Intercom/CallStarted", "PhotonEntry/Intercom/Refused", "PhotonEntry/Intercom/Unlock"):
+        assert msg(ev(10, topic, {"Result": "failed"})) is None
+    for p in (opened.payload, tamper.payload):
         jsonschema.validate(p, SCHEMA)

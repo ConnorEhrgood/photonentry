@@ -64,6 +64,11 @@ const ev = (seq, mins, topic, o = {}) => ({ controller_id: 'c1', seq, occurred_a
 const EVENTS = [ev(9, 2, 'AccessControl/AccessGranted/Credential', { cardholder: 'Alice Smith' }), ev(8, 14, 'AccessControl/Denied/Credential', { cardholder: 'Dan Kim', reason: 'CredentialNotEnabled' }),
   ev(7, 40, 'Door/State/DoorAlarm', { state: 'DoorOpenTooLong', door: 'Staff entrance' }), ev(6, 95, 'AccessControl/Denied/CredentialNotFound/Card'),
   ev(5, 300, 'AccessControl/AccessGranted/Credential', { cardholder: 'Carol Diaz', door: 'IT closet' })]
+const intercom = (o) => ({ id: 'i1', name: 'Front door intercom', door_id: 'd1', door: 'Main entrance', model: 'S532', mac: '0C:11:05:AA:BB:CC', relay_address: '',
+  relay_target: '10.152.0.20:8742', sip_server: 'vox.photonind.com', sip_port: 5061, sip_transport: 'tls', sip_user: 'cw-door-101', sip_password_set: true,
+  last_fetch_at: now, last_fetch_ip: '10.152.0.31', ...o })
+const INTERCOMS = [intercom(), intercom({ id: 'i2', name: 'Staff entrance intercom', door_id: 'd2', door: 'Staff entrance', model: 'X915V2', mac: '0C:11:05:01:02:03',
+  last_fetch_at: null, relay_target: '' })]
 const CATALOG = JSON.parse(readFileSync(new URL('../../contract/templates/catalog.json', import.meta.url)))   // the API's own catalog
 const MEMBERS = [{ person_id: 'm1', name: 'Ada Owner', email: 'ada@example.com', role: 'owner', scope: { all: true }, source: 'direct', pending: false },
   { person_id: 'm2', name: 'Partner support', email: '', role: 'admin', scope: { all: true }, source: 'partner', pending: false },
@@ -83,6 +88,9 @@ const answers = (who) => ({
   '/tenants/t1/sites/s1/events': [200, EVENTS], '/tenants/t1/members': [200, MEMBERS], '/tenants/t1/audit': [200, AUDIT],
   '/tenants/t1/integrations/guard': [200, { connected: true, enabled: true, token_hint: '…9f2c', last_ok_at: now, last_error: '', last_error_at: null, sent: 1284,
     guard_api_url: 'https://api.guard.photonind.com', bindings: DOORS.map((d) => ({ door_id: d.id, door: d.name, site: 'Main office', binding: `entry-door-0d1b2c3d-${d.id}00-4e5f-8a9b-0c1d2e3f4a5b` })) }],
+  '/tenants/t1/sites/s1/intercoms': [200, INTERCOMS],
+  '/tenants/t1/sites/s1/intercoms/i1/setup': [200, { provision_url: 'https://link.entry.photonind.com/provision/v1/Xq7mR2vK9pLw4nB8cT3yZf6hJ1sD5gA0/', unlock_code: '#',
+    admin_user: 'admin', admin_password: 'r8TqW2mZx5KpL9vBn3CjH7Ds' }],
   '/tenants/t1/integrations/console/tokens': [200, [{ id: 'k1', name: 'PhotonConsole', console_tenant_id: null, created_at: now, last_used_at: now, revoked: false }]],
 })
 
@@ -90,6 +98,7 @@ const answers = (who) => ({
 const PAGES = [
   ['overview', '/overview', 'owner'], ['doors', '/doors', 'owner'], ['people', '/people', 'owner'], ['person', '/people', 'owner', [{ button: 'Alice Smith' }]],
   ['access', '/access', 'owner'], ['events', '/events', 'owner'], ['customers-tech', '/', 'tech'], ['team', '/settings/team', 'owner'], ['guard', '/settings/guard', 'owner'], ['console', '/settings/console', 'owner'], ['audit', '/settings/audit', 'owner'],
+  ['intercom-add', '/doors', 'owner', [{ button: 'Add an intercom' }]], ['intercom-setup', '/doors', 'owner', [{ button: 'Setup values' }]],
   ['setup-1-controllers', '/setup', 'setup'],
   ['setup-2-template', '/setup', 'setup', [{ button: 'Next: choose a template' }, { radio: 'Office' }]],
   ['setup-3-doors', '/setup', 'setup', [{ button: 'Next: choose a template' }, { radio: 'Office' }, { button: 'Next: which door is which' }]],

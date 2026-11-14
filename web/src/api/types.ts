@@ -128,3 +128,29 @@ export interface Member {
   source: string
   pending: boolean
 }
+
+/** An Akuvox intercom at a door (BUILD-GUIDE §5). Its secrets are only in the audited setup view (IntercomSetup). */
+export interface Intercom {
+  id: string
+  name: string
+  door_id: string
+  door: string
+  model: string
+  mac: string
+  relay_address: string
+  relay_target: string
+  sip_server: string
+  sip_port: number
+  sip_transport: 'udp' | 'tcp' | 'tls'
+  sip_user: string
+  sip_password_set: boolean
+  last_fetch_at: string | null
+  last_fetch_ip: string
+}
+
+export interface IntercomSetup {
+  provision_url: string
+  unlock_code: string
+  admin_user: string
+  admin_password: string
+}

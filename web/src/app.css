@@ -46,3 +46,13 @@
 /* The schedule and group editors: days and doors as a wrapping row of checkboxes. */
 .pe-days { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
 .pe-holiday-edit .ph-btn { margin: 0.25rem 0 0.75rem; }
+
+/* Intercoms (pages/Intercoms.tsx) */
+.pe-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.pe-head h2 { margin: 0; }
+.pe-actions-cell { display: flex; gap: 0.25rem; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 720px) { .pe-actions-cell { justify-content: flex-start; } }
+.pe-howto { padding-left: 1.25rem; margin: 0 0 1rem; display: grid; gap: 0.25rem; }
+.pe-setup { display: grid; gap: 0.25rem 1rem; margin: 0 0 1rem; }
+.pe-setup dt { font-weight: 600; margin-top: 0.5rem; }
+.pe-setup dd { margin: 0; }

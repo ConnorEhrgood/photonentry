@@ -25,16 +25,18 @@ REASON_WORDS: Dict[str, str] = {
 @dataclass(frozen=True)
 class Normal:
     kind: str                       # granted | denied | access_taken | access_not_taken | opened | closed | forced | held_open | alarm_cleared |
-                                    # held_warning | tamper | tamper_cleared | mode | other
+                                    # held_warning | tamper | tamper_cleared | mode | intercom_tamper | intercom_call | intercom_refused | other
     severity: str                   # info | warning | critical
     label: str                      # a few words for people
     reason: Optional[str] = None    # for a denial: one of REASON_WORDS
-    method: Optional[str] = None    # credential | rex
+    method: Optional[str] = None    # credential | rex | intercom
     state: Optional[str] = None     # the controller's own state word, for mode events
 
 
 def normalize(topic: str, data: Dict[str, str]) -> Normal:
     state = data.get("State")
+    if topic.startswith("PhotonEntry/Intercom/"):
+        return _intercom(topic, data)
     if topic == "AccessControl/AccessGranted/Credential":
         return Normal("granted", "info", "Access granted", method="credential")
     if topic == "AccessControl/AccessGranted/Anonymous":
@@ -69,3 +71,21 @@ def normalize(topic: str, data: Dict[str, str]) -> Normal:
                  "LockedOpen": "held open", "Blocked": "blocked", "DoubleLocked": "double locked"}
         return Normal("mode", "warning" if state == "LockedDown" else "info", f"Door {words.get(state or '', (state or 'changed').lower())}", state=state)
     return Normal("other", "info", topic.split("/")[-1] or "Event", state=state)
+
+
+def _intercom(topic: str, data: Dict[str, str]) -> Normal:
+    """Events `entry-link` records itself for the intercoms at its doors (acap/entry-link/app/link.c, local_handle)."""
+    what = topic.rsplit("/", 1)[-1]
+    if what == "Unlock":
+        if data.get("Result") == "ok":
+            return Normal("granted", "info", "Opened from the intercom", method="intercom")
+        return Normal("other", "warning", "Intercom unlock failed: the controller did not open the door")
+    if what == "Tamper":
+        return Normal("intercom_tamper", "critical", "Intercom tampered with")
+    if what == "CallStarted":
+        return Normal("intercom_call", "info", "Intercom call")
+    if what == "CallEnded":
+        return Normal("intercom_call", "info", "Intercom call ended", state="ended")
+    if what == "Refused":
+        return Normal("intercom_refused", "warning", "Intercom request refused: wrong key")
+    return Normal("other", "info", what or "Event")

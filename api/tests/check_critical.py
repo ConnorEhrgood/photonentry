@@ -24,6 +24,8 @@ CRITICAL = [
     "api/app/events.py",                # what a door event means, everywhere
     "api/app/doorindex.py",             # which door (and person) an event belongs to
     "api/app/guard.py",                 # what crosses to PhotonGuard, once and in order
+    "api/app/akuvox.py",                # what an intercom is set up to do: never open the door itself
+    "api/app/routes/provision.py",      # which intercom gets which settings
     "api/app/consolefeed.py",           # what a PhotonConsole feed sees: one organization, never people
 ]
 

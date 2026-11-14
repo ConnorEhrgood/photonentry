@@ -45,7 +45,9 @@ cd sim && ~/.venvs/photonentry/bin/python -c "from axis_sim.device import Device
 cd api && ~/.venvs/photonentry/bin/python -c "import uvicorn; from app.main import create_app; from app.link.service import Link; from app.link.store import MemoryStore; uvicorn.run(create_app(Link(store=MemoryStore()), routes=False), port=8133)"
 # entry-link between them
 ENTRY_LINK_CLOUD=http://127.0.0.1:8133 ENTRY_LINK_VAPIX=http://127.0.0.1:8134 ENTRY_LINK_VAPIX_USER=root ENTRY_LINK_VAPIX_PASS=pass \
-  ENTRY_LINK_STATE_DIR=/tmp/entry-link acap/entry-link/build/entry-link
+  ENTRY_LINK_STATE_DIR=/tmp/entry-link ENTRY_LINK_LOCAL_BIND=127.0.0.1 ENTRY_LINK_LOCAL_PORT=8135 acap/entry-link/build/entry-link
+# an intercom's web relay, as Akuvox sends it (the intercom's id and key come from the published settings)
+curl "http://127.0.0.1:8135/v1/relay?intercom=<id>&key=<key>"
 ```
 
 `entry-link` prints its claim code. With the full API, an admin claims it with `POST /tenants/{org}/controllers/claim`; with the link alone,

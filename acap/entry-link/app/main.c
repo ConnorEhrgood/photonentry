@@ -7,6 +7,7 @@
  *   ENTRY_LINK_VAPIX_USER / ENTRY_LINK_VAPIX_PASS   its login (the simulator's; on the controller, the app's service account)
  *   ENTRY_LINK_MODEL / _SERIAL / _FIRMWARE          what the controller is (reported at hello)
  *   ENTRY_LINK_EVENT_POLL_MS                        how often the controller's event log is read (default 1000)
+ *   ENTRY_LINK_LOCAL_BIND / _PORT                   the intercoms' endpoint on the building's network (default 0.0.0.0:8742; port 0: off)
  *
  *   entry-link --sign-vector FILE   print the signature header for contract/link/vectors.json (tests)
  */
@@ -58,6 +59,8 @@ int main(int argc, char **argv) {
         .serial = env("ENTRY_LINK_SERIAL", "unknown"),
         .firmware = env("ENTRY_LINK_FIRMWARE", "unknown"),
         .event_poll_ms = atoi(env("ENTRY_LINK_EVENT_POLL_MS", "1000")),
+        .local_bind = env("ENTRY_LINK_LOCAL_BIND", "0.0.0.0"),
+        .local_port = atoi(env("ENTRY_LINK_LOCAL_PORT", "8742")),
     };
     if (cfg.event_poll_ms < 50) cfg.event_poll_ms = 50;
     if (!cfg.vapix_user) LOG_WARN("no controller login configured (ENTRY_LINK_VAPIX_USER): requests will be refused");

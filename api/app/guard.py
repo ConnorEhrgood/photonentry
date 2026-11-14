@@ -66,6 +66,10 @@ def message(e: DoorEvent, n: Normal, door: Door, holder: Optional[str], open_ala
             return None
         return Message({**base, "dedup_key": f"entry:{e.controller_id}:{e.ref or e.seq}", "state": "instant",
                         "label": f"{n.label}{who} at {door.name}", "record": CLIP})
+    if n.kind == "intercom_tamper":
+        # Akuvox reports a tamper once and never its end, so it is an instant event on the door's cameras, not an alarm that would stay open.
+        return Message({**base, "dedup_key": f"entry:{e.controller_id}:{e.ref or e.seq}", "state": "instant",
+                        "label": f"{n.label} at {door.name}", "record": CLIP})
     if n.kind in ALARM_KINDS:
         kind = ALARM_KINDS[n.kind]
         if kind in open_alarms:

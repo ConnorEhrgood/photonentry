@@ -280,5 +280,13 @@
         }
       ]
     }
+  ],
+  "intercoms": [
+    {
+      "id": "ic-front",
+      "name": "Front door intercom",
+      "door": "door-a1",
+      "secret_sha256": "5ac338d571c7bd0fb104efa28238e56b9876e502ab5b0967d155efd0a96c400e"
+    }
   ]
 }

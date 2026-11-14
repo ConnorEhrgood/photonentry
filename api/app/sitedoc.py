@@ -2,13 +2,14 @@
 which people and which credentials reach which controller).
 
 Runs in the publishing admin's own session, so row-level security applies to every row read. Card numbers and PINs are unsealed here and
-nowhere else: they leave only inside the compiled settings for a controller.
+nowhere else: they leave only inside the compiled settings for a controller. Intercoms' relay passwords are unsealed here only to hash them.
 
 A cardholder belongs to the site's document when they are in at least one of the site's access groups, and only that site's groups are listed
 for them. Ids in the document are the database's UUIDs as text (they become controller tokens such as `pe-c-<uuid>`).
 """
 from __future__ import annotations
 
+import hashlib
 import uuid
 from typing import Dict, List
 
@@ -17,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app import crypto
 from app.document import SiteDocument
-from app.models import AccessGroup, Cardholder, CardholderGroup, Credential, Door, HolidayCalendar, Schedule, Site
+from app.models import AccessGroup, Cardholder, CardholderGroup, Credential, Door, HolidayCalendar, Intercom, Schedule, Site
 
 
 def build(db: Session, site: Site) -> SiteDocument:
@@ -25,6 +26,7 @@ def build(db: Session, site: Site) -> SiteDocument:
     doors = db.execute(select(Door).where(Door.site_id == sid).order_by(Door.name)).scalars().all()
     schedules = db.execute(select(Schedule).where(Schedule.site_id == sid)).scalars().all()
     groups = db.execute(select(AccessGroup).where(AccessGroup.site_id == sid)).scalars().all()
+    intercoms = db.execute(select(Intercom).where(Intercom.site_id == sid)).scalars().all()
     calendar = db.get(HolidayCalendar, sid)
     memberships = db.execute(select(CardholderGroup).where(CardholderGroup.site_id == sid)).scalars().all()
     by_holder: Dict[uuid.UUID, List[str]] = {}
@@ -47,6 +49,9 @@ def build(db: Session, site: Site) -> SiteDocument:
                    "unlock_schedule_id": str(d.unlock_schedule_id) if d.unlock_schedule_id else None} for d in doors],
         "access_groups": [{"id": str(g.id), "name": g.name, "rules": g.rules} for g in groups],
         "cardholders": [_holder(h, sorted(by_holder[h.id]), creds_by_holder.get(h.id, [])) for h in holders],
+        # Only the hash of each relay password leaves for the controller: entry-link checks the intercom's password against it.
+        "intercoms": [{"id": str(i.id), "name": i.name, "door_id": str(i.door_id),
+                       "secret_sha256": hashlib.sha256(crypto.unseal(i.relay_secret_sealed).encode()).hexdigest()} for i in intercoms],
     }
     return SiteDocument.model_validate(doc)
 
