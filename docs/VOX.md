@@ -3,7 +3,13 @@
 Status: **agreed 2026-11-14.** PhotonEntry's side built against a fake; **PhotonVox's side built** (photonvox f0629ca, not deployed): its answers
 are checked against these schemas in its own tests, and on staging's real FreeSWITCH a door rang a desk phone and a ring group, the answerer's
 `#` reached the door as RFC 2833 both ways, and a door dialing out reached only its own flow (42 of 42). No standing staging API yet to run
-PhotonEntry against (a deploy: Connor's). PhotonVox extensions start with 1 to 8. PhotonVox's side is PhotonVox's work (v1), with Connor's go-ahead; this
+PhotonEntry against (a deploy: Connor's). PhotonVox extensions start with 1 to 8.
+
+**Run against the development PhotonVox (2026-11-14; v1's, on LXC 800, Connor's go):** `scripts/vox-dev-check.py` (the client: both stations valid
+against the contract, with the outbound proxy; the SIP account into the Akuvox file; a real SIPp call from "front" answered by "Front desk
+(100)" after `#`; 400, 404, 401 and another organization's answer refused) and `api/tests/db/test_vox_dev.py` (skipped unless named: the whole
+path through PhotonEntry's API and worker: connect with the real token, the intercom on "front", a door opened during that real call, named in
+the door's events). The development token is v1's, never in git. PhotonVox's side is PhotonVox's work (v1), with Connor's go-ahead; this
 document does not change PhotonVox's repo. The contract: `contract/vox/` (schemas and samples).
 
 ## What each product owns

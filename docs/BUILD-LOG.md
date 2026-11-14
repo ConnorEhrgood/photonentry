@@ -454,3 +454,10 @@ went: sent once; a failing mail service is tried again on the next pass (some ma
 configured the notices are marked, not kept; a notice over an hour late is dropped (the banner still shows the lockdown).
 
 **Verified:** 4 tests on Postgres at 100% branch coverage (recipients, once, the end, failure and retry, mail off, a late notice, some doors).
+
+## 2026-11-14: PhotonEntry against a real (development) PhotonVox
+
+v1 stood up a development PhotonVox on LXC 800 (Connor's go; not production) with a dev token and two door stations. **Both pass:**
+`scripts/vox-dev-check.py` (the client, read-only: stations valid against the contract with the outbound proxy, the SIP account into the Akuvox
+file, a real call answered after `#` named, 400/404/401 and another organization refused) and `api/tests/db/test_vox_dev.py` (the whole path
+through PhotonEntry's API and worker, against PhotonVox; skipped in ordinary runs). The token stays out of git.
