@@ -20,6 +20,7 @@ def main(argv: list[str]) -> int:
         print(__doc__, file=sys.stderr)
         return 2
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)       # its request lines carry the intercoms' provisioning tokens and relay keys
     Runner(Path(os.environ.get("DEMO_STATE", "/state")), os.environ.get("DEMO_CLOUD", "https://link.entry.photonind.com"),
            os.environ.get("DEMO_PROVISION", "https://prov.entry.photonind.com"),
            os.environ.get("DEMO_ENTRY_LINK", "/usr/local/bin/entry-link")).main()

@@ -14,6 +14,12 @@ from typing import Any, Optional
 request_id: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="")
 org_id: contextvars.ContextVar[str] = contextvars.ContextVar("org_id", default="")
 _GOOD_ID = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
+# Addresses whose path is a secret: an intercom's provisioning token, a visitor's pass link. Access log lines name them; the token is cut out.
+_SECRET_PATH = re.compile(r"(/(?:provision|passes)/v1/)[^/\s\"?]+")
+
+
+def redact(msg: str) -> str:
+    return _SECRET_PATH.sub(r"\1…", msg)
 
 
 class JsonFormatter(logging.Formatter):
@@ -23,7 +29,7 @@ class JsonFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         out: dict[str, Any] = {"ts": datetime.fromtimestamp(record.created, timezone.utc).isoformat(timespec="milliseconds"),
-                               "level": record.levelname.lower(), "service": self.service, "logger": record.name, "msg": record.getMessage()}
+                               "level": record.levelname.lower(), "service": self.service, "logger": record.name, "msg": redact(record.getMessage())}
         if request_id.get():
             out["request_id"] = request_id.get()
         if org_id.get():

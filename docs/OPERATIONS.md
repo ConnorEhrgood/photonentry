@@ -77,6 +77,11 @@ production directory a few times with made-up credentials; the directory refused
 
 ## 7. Secrets and rotation
 
+- **Secrets in addresses:** an intercom's provisioning token (`/provision/v1/<token>/`) and a visitor's pass (`/passes/v1/<token>`, the web
+  app's `/pass/<token>`) are in their URLs. The API cuts them out of its log lines (`app/obs.py redact`, since 2026-11-14; before that its access
+  log wrote them). The host Caddy's access log, if the host turns it on, would hold them too: check at the first deploy, and leave it off for
+  `prov.` and `/pass/`, or redact there.
+
 - In `.env` (mode 600) on the host, and (O1) encrypted in git with sops + age. Never printed, never logged.
 - **`SECRETS_KEY`:** add a new key first in the list (the old one stays to decrypt), deploy; re-seal is a later, separate job.
 - **The directory's product credential and notice secret:** issued by id1; rotate in the directory, then `.env`, then restart the worker.
