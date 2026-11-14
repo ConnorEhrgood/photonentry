@@ -26,7 +26,9 @@
               "port": {"type": "integer", "minimum": 1, "maximum": 65535},
               "transport": {"enum": ["udp", "tcp", "tls"]},
               "username": {"type": "string", "minLength": 1, "maxLength": 64, "description": "Both the register name and the auth name."},
-              "password": {"type": "string", "minLength": 1, "maxLength": 128}
+              "password": {"type": "string", "minLength": 1, "maxLength": 128},
+              "outbound_proxy": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^[A-Za-z0-9.-]+:[0-9]{1,5}$"}],
+                                 "description": "host:port the intercom sends its SIP through, when the SIP domain does not resolve to the engine from the customer's network (set by PhotonVox per engine; usually null). Optional; PhotonVox always sends it."}
             }
           },
           "updated_at": {"type": "string", "format": "date-time", "description": "When anything above last changed (a new SIP password included)."}

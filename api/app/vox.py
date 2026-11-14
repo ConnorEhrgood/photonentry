@@ -52,6 +52,7 @@ class Sip(_Doc):
     transport: Literal["udp", "tcp", "tls"]
     username: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=1, max_length=128)
+    outbound_proxy: Optional[str] = Field(default=None, pattern=r"^[A-Za-z0-9.-]+:[0-9]{1,5}$")
 
 
 class Station(_Doc):
@@ -132,13 +133,13 @@ def door_call(fetch: Fetch, token: str, tenant_id: uuid.UUID, station_id: str, a
 
 def copy_sip(i: Intercom, s: Station, now: datetime) -> bool:
     """Put the station's SIP account on the intercom (sealed). True if anything changed (the intercom gets it at its next hourly fetch)."""
-    old = (i.vox_station_id, i.sip_server, i.sip_port, i.sip_transport, i.sip_user,
+    old = (i.vox_station_id, i.sip_server, i.sip_port, i.sip_transport, i.sip_user, i.sip_outbound_proxy,
            crypto.unseal(i.sip_password_sealed) if i.sip_password_sealed else "")
-    new = (s.id, s.sip.server, s.sip.port, s.sip.transport, s.sip.username, s.sip.password)
+    new = (s.id, s.sip.server, s.sip.port, s.sip.transport, s.sip.username, s.sip.outbound_proxy or "", s.sip.password)
     i.sip_synced_at = now
     if old == new:
         return False
-    i.vox_station_id, i.sip_server, i.sip_port, i.sip_transport, i.sip_user = new[:5]
+    i.vox_station_id, i.sip_server, i.sip_port, i.sip_transport, i.sip_user, i.sip_outbound_proxy = new[:6]
     i.sip_password_sealed = crypto.seal(s.sip.password)
     return True
 

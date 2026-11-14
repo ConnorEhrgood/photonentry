@@ -351,6 +351,7 @@ class Intercom(Base):
     sip_transport: Mapped[str] = mapped_column(String(3), default="tls")        # udp | tcp | tls
     sip_user: Mapped[str] = mapped_column(String(64), default="")
     sip_password_sealed: Mapped[str] = mapped_column(Text, default="")
+    sip_outbound_proxy: Mapped[str] = mapped_column(String(80), default="")      # "host:port" from PhotonVox, when the domain does not resolve
     relay_secret_sealed: Mapped[str] = mapped_column(Text)                      # the web relay's password, also the action URLs' key
     admin_password_sealed: Mapped[str] = mapped_column(Text)                    # the intercom's web page (user admin)
     provision_token_sealed: Mapped[str] = mapped_column(Text)

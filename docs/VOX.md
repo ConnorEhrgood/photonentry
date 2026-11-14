@@ -68,8 +68,9 @@ a minute per organization at most.
 - Tokens `pvx_entry_<random>`, stored hashed, shown once, revocable; PhotonVox capability `vox.entry.manage` (admin, owner; sensitive).
 - `door-stations` lists the **published** phone system's doors (never a draft), each once its SIP password exists; station ids are the
   document's door keys (`^[a-z0-9-]+$`). 400 for a bad `at` or `window_s`.
-- Open: whether the SIP domain resolves to the engine for an intercom on the customer's network, or intercoms need an outbound proxy (then an
-  optional `sip.outbound_proxy`).
+- `sip.outbound_proxy` ("host:port" or null; always sent): customer SIP domains sit under a wildcard that resolves publicly to their engine, so
+  it is normally null; PhotonVox sets it per engine where filtered or split DNS needs it, and PhotonEntry puts it in the intercom's
+  `Config.Account1.OUTPROXY.*` keys (migration 0009).
 
 ## PhotonEntry's side (built 2026-11-14)
 

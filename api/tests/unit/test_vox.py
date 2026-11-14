@@ -76,15 +76,22 @@ def test_a_call_about_another_station_or_a_missing_one():
 
 def test_a_station_s_sip_account_onto_an_intercom():
     [s] = vox.stations(answer(200, STATIONS)[0], "tok", ORG)
-    i = Intercom(sip_server="", sip_port=5061, sip_transport="tls", sip_user="", sip_password_sealed="", vox_station_id="")
+    i = Intercom(sip_server="", sip_port=5061, sip_transport="tls", sip_user="", sip_password_sealed="", vox_station_id="", sip_outbound_proxy="")
     assert vox.copy_sip(i, s, AT) is True
     assert (i.vox_station_id, i.sip_server, i.sip_user, i.sip_synced_at) == ("front-door", "cedar-works.pbx.photonind.com", "901", AT)
     assert crypto.unseal(i.sip_password_sealed) == "Rk2v9QpL4xT7mW1z" and "Rk2v9" not in i.sip_password_sealed
     assert vox.copy_sip(i, s, AT) is False                                         # unchanged: nothing to give the intercom
+    assert i.sip_outbound_proxy == ""
     rotated = copy.deepcopy(STATIONS)
     rotated["stations"][0]["sip"]["password"] = "NewPassword123456"
+    rotated["stations"][0]["sip"]["outbound_proxy"] = "sbc.photonind.com:5060"
     [s2] = vox.stations(answer(200, rotated)[0], "tok", ORG)
     assert vox.copy_sip(i, s2, AT) is True and crypto.unseal(i.sip_password_sealed) == "NewPassword123456"
+    assert i.sip_outbound_proxy == "sbc.photonind.com:5060"
+    bad = copy.deepcopy(STATIONS)
+    bad["stations"][0]["sip"]["outbound_proxy"] = "no port here"
+    with pytest.raises(vox.VoxError, match="not what PhotonEntry expects"):
+        vox.stations(answer(200, bad)[0], "tok", ORG)
 
 
 def test_how_the_events_name_who_answered():

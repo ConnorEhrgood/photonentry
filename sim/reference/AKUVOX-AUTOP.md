@@ -61,6 +61,7 @@ Bench item: encrypt a file with Akuvox's tool, find the scheme, then add `Key16M
 | Server, port | `Config.Account1.SIP.Server`, `.Port` | |
 | Transport | `Config.Account1.SIP.TransType` | 0 UDP, 1 TCP, 2 TLS [R29X, BW] |
 | SRTP | `Config.Account1.ENCRYPTION.SRTPEncryption` | 2 optional, with TLS; 0 otherwise |
+| Outbound proxy (when PhotonVox gives one) | `Config.Account1.OUTPROXY.Enable`, `.Server`, `.Port` [ALL, R29X] | 1, host, port; otherwise 0 |
 | Web admin password (user admin) | `Config.Settings.WEB_LOGIN.Password` | random [ALL] |
 | Wiegand mode | `Config.DoorSetting.GENERAL.WiegandMode` | 1 output |
 | Wiegand format | `Config.DoorSetting.GENERAL.WiegandType` | 1 W34 (26-bit drops a byte, §3.4) |

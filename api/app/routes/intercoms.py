@@ -110,7 +110,7 @@ def view(db: Session, i: Intercom, doors: Dict[uuid.UUID, Door]) -> Dict[str, An
     return {"id": str(i.id), "name": i.name, "door_id": str(i.door_id), "door": door.name if door else "", "model": i.model,
             "mac": ":".join(i.mac[n:n + 2] for n in range(0, 12, 2)), "relay_address": i.relay_address, "relay_target": relay_target(db, i),
             "sip_server": i.sip_server, "sip_port": i.sip_port, "sip_transport": i.sip_transport, "sip_user": i.sip_user,
-            "sip_password_set": bool(i.sip_password_sealed), "vox_station_id": i.vox_station_id,
+            "sip_password_set": bool(i.sip_password_sealed), "sip_outbound_proxy": i.sip_outbound_proxy, "vox_station_id": i.vox_station_id,
             "sip_synced_at": i.sip_synced_at.isoformat() if i.sip_synced_at else None,
             "last_fetch_at": i.last_fetch_at.isoformat() if i.last_fetch_at else None, "last_fetch_ip": i.last_fetch_ip}
 

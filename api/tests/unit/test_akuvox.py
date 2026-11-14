@@ -63,3 +63,11 @@ def test_secrets_are_plain_letters_and_digits():
     assert len(p) == 24 and p.isalnum() and p != akuvox.new_password()
     assert len(akuvox.token_hash("x")) == 64
     assert akuvox.general_file("r000000000532.cfg").startswith("#")
+
+
+def test_an_outbound_proxy_only_when_photonvox_gives_one():
+    k = keys(akuvox.render(D))
+    assert (k["Config.Account1.OUTPROXY.Enable"], k["Config.Account1.OUTPROXY.Server"], k["Config.Account1.OUTPROXY.Port"]) == ("0", "", "")
+    from dataclasses import replace
+    k = keys(akuvox.render(replace(D, sip_outbound_proxy="sbc.photonind.com:5060")))
+    assert (k["Config.Account1.OUTPROXY.Enable"], k["Config.Account1.OUTPROXY.Server"], k["Config.Account1.OUTPROXY.Port"]) == ("1", "sbc.photonind.com", "5060")

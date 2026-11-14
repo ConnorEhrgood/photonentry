@@ -50,7 +50,7 @@ def fetch(token: str, name: str, request: Request) -> PlainTextResponse:
         device = akuvox.Device(
             id=str(i.id), name=i.name, relay_target=relay_target(db, i), relay_secret=crypto.unseal(i.relay_secret_sealed),
             admin_password=crypto.unseal(i.admin_password_sealed), provision_url=provision_url(token), sip_server=i.sip_server,
-            sip_port=i.sip_port, sip_transport=i.sip_transport, sip_user=i.sip_user,
+            sip_port=i.sip_port, sip_transport=i.sip_transport, sip_user=i.sip_user, sip_outbound_proxy=i.sip_outbound_proxy,
             sip_password=crypto.unseal(i.sip_password_sealed) if i.sip_password_sealed else "")
         body = akuvox.render(device)
         i.last_fetch_at, i.last_fetch_ip = datetime.now(timezone.utc), client_key(request)[:64]

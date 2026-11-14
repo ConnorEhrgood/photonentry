@@ -53,6 +53,7 @@ class Device:
     sip_transport: str = "tls"
     sip_user: str = ""
     sip_password: str = ""
+    sip_outbound_proxy: str = ""   # "host:port", when the SIP domain does not resolve to the engine from the customer's network
 
 
 def _value(v: object) -> str:
@@ -91,6 +92,10 @@ def render(d: Device) -> str:
     put("Config.Account1.SIP.Port", d.sip_port)
     put("Config.Account1.SIP.TransType", TRANSPORT[d.sip_transport])
     put("Config.Account1.ENCRYPTION.SRTPEncryption", 2 if d.sip_transport == "tls" else 0)
+    proxy_host, _, proxy_port = d.sip_outbound_proxy.rpartition(":")
+    put("Config.Account1.OUTPROXY.Enable", int(bool(d.sip_outbound_proxy)))
+    put("Config.Account1.OUTPROXY.Server", proxy_host)
+    put("Config.Account1.OUTPROXY.Port", proxy_port)
 
     lines += ["", "# A card reader for the door controller: 34-bit Wiegand out, no card check of its own (the controller decides)"]
     put("Config.DoorSetting.GENERAL.WiegandMode", 1)

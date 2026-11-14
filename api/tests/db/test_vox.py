@@ -37,7 +37,8 @@ class FakeVox:
     @staticmethod
     def station(id, name, ext, password):
         return {"id": id, "name": name, "site_id": None, "extension": ext, "updated_at": "2026-11-14T15:00:00Z",
-                "sip": {"server": "cedar.pbx.photonind.com", "port": 5061, "transport": "tls", "username": f"{ext}-k3v9", "password": password}}
+                "sip": {"server": "cedar.pbx.photonind.com", "port": 5061, "transport": "tls", "username": f"{ext}-k3v9", "password": password,
+                        "outbound_proxy": None}}
 
     def __call__(self, url, token, params):
         self.asked.append((url.rsplit("/", 1)[-1], params))
@@ -132,10 +133,12 @@ def test_the_worker_keeps_sip_accounts_current_and_says_when_a_station_is_gone(c
     ic = intercom(client, world, ids, vox_station_id="ds-1").json()
     now = datetime.now(timezone.utc)
     fake_vox.stations["ds-1"]["sip"]["password"] = "pw-two-0123456789"       # PhotonVox rotated it
+    fake_vox.stations["ds-1"]["sip"]["outbound_proxy"] = "sbc.photonind.com:5060"
     with SystemSession() as s:
         assert vox.run_all(s, fake_vox, now, sync=True) == (1, 0)
         assert vox.run_all(s, fake_vox, now, sync=True) == (0, 0)
         assert crypto.unseal(s.get(Intercom, uuid.UUID(ic["id"])).sip_password_sealed) == "pw-two-0123456789"
+        assert s.get(Intercom, uuid.UUID(ic["id"])).sip_outbound_proxy == "sbc.photonind.com:5060"
     del fake_vox.stations["ds-1"]
     with SystemSession() as s:
         vox.run_all(s, fake_vox, now, sync=True)
