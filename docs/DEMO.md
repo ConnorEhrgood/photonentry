@@ -42,10 +42,11 @@ All three sites are `America/New_York`. `billboards` has no Entry part.
   - **Intercom calls:** a call at hq's front about every hour in business hours, and at the apartments' lobby every 30 to 60 minutes from 8 to 21. Most end in an unlock from the intercom; a few end unanswered.
   - **Actions from the app:** unlocks, lockdowns and door modes go through the real path (cloud → entry-link → controller) and show as events. After an unlock, the simulated door is opened and closed, as a person walking through would.
 - **History back-filled:** 30 days of the same pattern. On day one the event list, the dashboards and the intercom pages look lived-in.
-- **Phone unlock (decision 25):**
-  - The QA account (a viewer; every role can open its own doors) is linked, by the email address id1 gives, to a resident, "Quinn Rivera", so the app-store reviewer can open the lobby, package room and gym from **My doors**.
-  - The open goes to a simulated controller and shows as an event.
-  - m1 notes this for the store review account.
+- **Phone unlock (decision 25), off by default:**
+  - `seed --link-viewer` links a fictional resident, "Quinn Rivera", to the one person who holds the viewer role on the demo organization in PhotonEntry's copy of the directory; no address is written anywhere. It refuses if there are several.
+  - That person can then open the lobby, package room and gym from **My doors**, on simulated controllers, and each open shows as an event.
+  - It waits for the operator's answer: id1 notes that opening doors goes beyond "viewer", and that the store review account is m1's and may not be the QA account.
+  - A person with no linked cardholder (a prospect login, say) opens nothing: My doors shows "not linked".
 
 ## 2. How it is simulated (the real protocols, nothing real touched)
 
@@ -72,7 +73,7 @@ The intercoms' events in the history (call started, opened from the intercom, ca
   - claims the five controllers by their claim codes, to their sites;
   - applies the templates;
   - creates people, cards, passes, intercoms and commissioning records;
-  - links the QA account;
+  - with `--link-viewer` only, links the viewer to Quinn Rivera;
   - publishes.
 - `remove` takes it all out. It deletes every row of the demo organization in PhotonEntry and disables its controllers; the directory's organization and sites stay, as they are id1's.
 
@@ -138,7 +139,7 @@ Each is a link an admin turns on in Entry's Integrations page.
    - the five controllers show online with their settings applied;
    - the event list fills with 30 days of history;
    - a card, a forced door and an intercom unlock appear within the hour.
-5. **Hand over:** tell m1 that My doors works for the QA account.
+5. **Only if the operator says so:** `seed --link-viewer`, and tell m1 which account opens doors.
 
 **Rollback:**
 
@@ -159,6 +160,5 @@ Each is a link an admin turns on in Entry's Integrations page.
 ## 6. Decisions
 
 - **Connor's:** only the go for the rollout, which for Entry is the same go as GATE P.
-- **Settled without him:**
-  - The QA account linked to a resident: m1 notes it, and it opens only simulated doors.
-  - Vox, Guard and Console links: v1, d2 and d3 decide.
+- **The operator's (raised by id1):** whether any demo login may open (simulated) doors from the app, and which one; until then `--link-viewer` stays off.
+- **Settled without him:** Vox, Guard and Console links (v1, d2, d3).
