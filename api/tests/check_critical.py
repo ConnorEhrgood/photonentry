@@ -33,6 +33,7 @@ CRITICAL = [
     "api/app/publishing.py",            # what a publish sends each controller
     "api/app/passes.py",                # giving a stranger a way in
     "api/app/routes/passes.py",
+    "api/app/notify.py",                # who is told of a lockdown, once
     "api/app/consolefeed.py",           # what a PhotonConsole feed sees: one organization, never people
 ]
 

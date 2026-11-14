@@ -444,3 +444,13 @@ the development PhotonID.
 
 **Not done:** a hash-locked requirements file (OPERATIONS.md §2.9: needs pip-tools), the move to PhotonGuard's signed-image registry, CI, the
 host's watch and backup manifest entries (at the first deploy).
+
+## 2026-11-14: lockdown notices by email (ARCHITECTURE §9.6; approved by Connor)
+
+**Built** (`app/notify.py`, CRITICAL; migration 0011): when a lockdown starts and when it ends, the worker emails (Postmark) everyone active with
+an email whose role at that site can start or end a lockdown (operators, admins, owners, partner staff included); viewers, inactive people and
+other customers' people never. Never the request that locks the doors, so mail cannot delay a lockdown. Each lockdown records when each notice
+went: sent once; a failing mail service is tried again on the next pass (some may get it twice rather than someone not at all); with no mail
+configured the notices are marked, not kept; a notice over an hour late is dropped (the banner still shows the lockdown).
+
+**Verified:** 4 tests on Postgres at 100% branch coverage (recipients, once, the end, failure and retry, mail off, a late notice, some doors).

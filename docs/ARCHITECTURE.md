@@ -562,7 +562,8 @@ Console offers **no door actions**: an automation must never open a door.
     - notifies every admin and operator.
   - **It ends** only by a person with the capability, with a reason. Egress and fire release are never affected.
   - **Built (2026-11-14):** the record (scope, reason, who started and ended it and why, each door's confirmation), `tdc:LockDownDoor` per door,
-    the banner on every page. **Waiting for the bench** (sim/reference/AXIS-LOCKDOWN.md): responders (Axis documents no way for some
+    the banner on every page, and (Connor, 2026-11-14) an email to the site's admins and operators when it starts and when it ends, sent by
+    the worker so mail never delays a lockdown. **Waiting for the bench** (sim/reference/AXIS-LOCKDOWN.md): responders (Axis documents no way for some
     credentials to pass a locked-down door on the VAPIX track) and the panic input (no documented door action on the controller's own rules;
     two candidate designs).
 - **Emergency alerts** (suite idea, not designed): a lockdown publishes an emergency event that Vox (paging, call lists), Board (messages on

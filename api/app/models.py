@@ -420,6 +420,8 @@ class Lockdown(Base):
     ended_by_source: Mapped[str] = mapped_column(String(10), default="")
     end_reason: Mapped[str] = mapped_column(String(200), default="")
     end_commands: Mapped[List[str]] = mapped_column(JSONB, default=list)
+    start_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))   # mailed to the site's admins and operators (app/notify.py)
+    end_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
 # ---- 6. commissioning (Step 6; ARCHITECTURE §7.2, §7.7) ----

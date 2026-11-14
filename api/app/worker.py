@@ -14,7 +14,7 @@ from typing import Any, Callable
 
 from sqlalchemy import text
 
-from app import guard, obs, sync, vox
+from app import guard, mail, notify, obs, sync, vox
 from app.config import settings
 from app.db import SystemSession
 from app.deps import get_directory
@@ -45,6 +45,9 @@ def tick(state: dict, clock: Callable[[], float] = time.monotonic) -> None:
     sent = run_job("guard", lambda db: sum(r.sent for r in guard.forward_all(db, guard.http_post, utcnow())))
     if sent:
         log.info("guard: sent %d event(s)", sent)
+    notified = run_job("lockdown mail", lambda db: notify.notify_lockdowns(db, mail.send, utcnow()))
+    if notified:
+        log.info("lockdown mail: %d notice(s)", notified)
     sync_sip = now - state.get("vox_sync", float("-inf")) >= VOX_SYNC_S
     if sync_sip:
         state["vox_sync"] = now

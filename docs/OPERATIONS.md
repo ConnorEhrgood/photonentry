@@ -35,7 +35,7 @@ scripts/deploy.sh prod deploy/prod/20261120-1   # roll back: deploy the previous
 
 `POSTGRES_PASSWORD`, `APP_DB_PASSWORD`, `SYSTEM_DB_PASSWORD` · `OIDC_ISSUER`, `OIDC_AUDIENCE`, `OIDC_WEB_CLIENT_ID`, `CORS_ORIGINS`, `ACCOUNT_ORIGIN`
 · `DIRECTORY_URL`, `DIRECTORY_CLIENT_ID`, `DIRECTORY_CLIENT_SECRET`, `DIRECTORY_NOTICE_SECRET` · `SECRETS_KEY` (Fernet, comma separated: the
-first encrypts), `FINGERPRINT_KEY` · `WEB_URL`, `PROVISION_URL`, `GUARD_API_URL`, `VOX_API_URL` · `POSTMARK_TOKEN`, `MAIL_FROM` · the web
+first encrypts), `FINGERPRINT_KEY` · `WEB_URL`, `PROVISION_URL`, `GUARD_API_URL`, `VOX_API_URL` · `POSTMARK_TOKEN`, `MAIL_FROM` (visitors' passes, and lockdown notices to the site's admins and operators; empty: nothing is sent) · the web
 app's `VITE_OIDC_CLIENT_ID`, `VITE_OIDC_AUDIENCE_PROJECT` (and optional `VITE_*` overrides). The API and worker refuse to start on an unsafe
 production configuration (`app/config.py production_safe`).
 
