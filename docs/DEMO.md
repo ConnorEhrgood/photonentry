@@ -124,7 +124,7 @@ Each is a link an admin turns on in Entry's Integrations page.
   - **Simulated badges for staff only.**
   - **An end-to-end run** on the runner: the real entry-link binaries against the simulators with history, a card at a reader, a forced door, and an intercom call that ends in an unlock. Everything arrives as events, in order, exactly once.
 - **The dev copy:** seeded with the directory's IDs above (the organization row as the directory's sync writes it, `demo: true`).
-- **A full run on LXC 800, as production would run it** (waits: LXC 800 is out of memory, the operator 2026-11-14; then one suite at a time, and the stacks taken down after):
+- **A full run on LXC 800, as production would run it** (done 2026-11-14, then everything removed):
   - the PhotonEntry stack and the `photonentry-demo` project in Docker, as two separate projects; the simulators reach the stack only by its published address, standing in for the public names;
   - `demo.sh seed`, then a few hours live;
   - `demo.sh reset`, then `demo.sh remove`;
@@ -151,7 +151,7 @@ Each is a link an admin turns on in Entry's Integrations page.
 
 | | |
 |---|---|
-| CPU and memory | One container on the demo host, capped at 0.5 CPU and 256 MB. Measured on the runner (2026-11-14): the simulators' process about 80 MB with every controller's log full (3,000 rows each), 30 days of history in about a second of CPU, entry-link 1.4 MB each idle. Measured again in Docker on LXC 800 when it has memory to spare. Production's share: the API serving six controllers, about what one small site costs |
+| CPU and memory | One container on the demo host, capped at 0.5 CPU and 256 MB. Measured in Docker on LXC 800 (2026-11-14): 124 to 141 MB and about 8% of one CPU, live, after 30 days of history; entry-link 1.4 MB each. Production's share: the API serving six controllers, about what one small site costs |
 | Database | About 3,000 events a day, ~3 MB a day, kept 45 days: ~150 MB at most, in the nightly backup (cents of B2) |
 | Bandwidth | Six controllers' long-polls and events, two intercoms' hourly settings: an estimated 0.5 GB a month each way. The first history upload is a one-off of about 50 MB |
 | B2 / media | None (PhotonEntry stores no media) |

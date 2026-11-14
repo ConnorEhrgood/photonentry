@@ -204,12 +204,13 @@ class Device:
                                 "warning": r.warning, "opened_at": t(r.opened_at), "schedule_state": r.schedule_state}
                             for d, r in self.runtime.items()}}
 
-    def restore(self, snap: Dict[str, Any]) -> None:
-        """Back to a snapshot of this same controller (refused for another one)."""
+    def restore(self, snap: Dict[str, Any], rowid_gap: int = 0) -> None:
+        """Back to a snapshot of this same controller (refused for another one). `rowid_gap`: new rows are numbered that far past the snapshot's,
+        so rows logged after it (and read already) are never numbered again: a reader whose cursor is past the snapshot reads only what is new."""
         if snap["mac"] != self.mac or snap["doors"] != self.doors:
             raise ValueError("a snapshot of another controller")
         self.store, self.log = snap["store"], snap["log"][-self.log_capacity:]
-        self._rowid = itertools.count(snap["next_rowid"])
+        self._rowid = itertools.count(snap["next_rowid"] + rowid_gap)
         self.runtime = {d: DoorRuntime(base=r["base"], sticky=r["sticky"], accessed_until=_parse_time(r["accessed_until"] or ""),
                                        accessed_by=tuple(r["accessed_by"]) if r["accessed_by"] else None, physical=r["physical"],
                                        alarm=r["alarm"], warning=r["warning"], opened_at=_parse_time(r["opened_at"] or ""),

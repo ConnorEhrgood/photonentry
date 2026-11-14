@@ -532,4 +532,18 @@ docs/DEMO.md. **Nothing is in production:** Entry's demo rides with GATE P and C
 - **End to end on Postgres:** six real entry-links claimed by the seed, two days of history arriving exactly once, then live, read back through the API: a manager's card, a forced door, and the lobby intercom fetching its settings, ringing and opening the door.
 - **Memory on the runner:** about 80 MB for the simulators with full logs, and 1.4 MB per entry-link.
 
-**Not yet:** the Docker run on LXC 800, which waits for it to have memory (the operator).
+**The Docker check on LXC 800** (once it had memory again; everything removed afterwards):
+- **The stack:** PhotonEntry's database, migration and API, with the demo organization's rows as the directory sends them.
+- **`demo.sh build` and `seed`:**
+  - six controllers claimed, set up and signed off;
+  - 30 days of history arrived as 47,102 events (6,210 cards admitted, 121 refused, 42 forced, 542 intercom unlocks);
+  - live: the lobby intercom fetched its settings, rang, opened the door through entry-link and hung up.
+- **The container:** 124 to 141 MB of its 256 MB, about 8% of one CPU.
+- **`reset`, a restart and `remove`:**
+  - `reset` gave a clean demo with fresh history;
+  - a restart kept each controller's state, with no new claim and no history again;
+  - `remove` left no demo rows but kept the directory's sites.
+
+**Found and fixed on the way:**
+- **Tokens in logs:** the API's access log wrote intercoms' provisioning tokens and visitors' pass tokens in clear. They are cut out now (`obs.redact`; OPERATIONS §7). The simulators logged request addresses too; not any more.
+- **Duplicates after a crash:** after an unclean stop, rows logged since the last snapshot would be numbered again, and entry-link would read the log again as new events. New rows are now numbered far past the snapshot's.

@@ -138,6 +138,11 @@ def test_a_snapshot_brings_a_controller_back_after_a_restart():
     assert again.log[-1]["rowid"] > d.log[-1]["rowid"]
     with pytest.raises(ValueError):
         Device(mac="0250de0000ff", doors=2).restore(snap)
+    # After a crash: rows logged since the snapshot were read already; new ones are numbered past them, so none is read twice.
+    crashed = Device(mac=d.mac, doors=2, clock=clocks["hq-lobby"], log_capacity=run.LOG_ROWS)
+    crashed.restore(snap, rowid_gap=run.ROWID_GAP)
+    crashed.present(run.reader("hq-lobby", 1, "in"), [{"Name": "Card", "Value": "00000001"}])
+    assert crashed.log[-1]["rowid"] > snap["next_rowid"] + run.ROWID_GAP - 1
 
 
 def test_the_intercom_reads_its_settings_and_calls_with_them():

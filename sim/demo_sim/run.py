@@ -40,6 +40,7 @@ CONTROLLERS: Dict[str, Tuple[int, str, int, int]] = {
     "apt-lobby": (2, "AXIS A1610", 18805, 18705), "apt-back": (2, "AXIS A1610", 18806, 18706),
 }
 TICK_EVERY = timedelta(minutes=10)          # the history's timer runs (door schedules); live, the simulator's own ticker runs them
+ROWID_GAP = 1_000_000                       # after a crash, past any row logged since the last snapshot (one every 10 minutes)
 LOG_ROWS = 3000                             # each controller's log: a day of history fits; ~7 MB each (a full 30,000 would be ~70 MB)
 CALLERS = ["201", "202", "205", "210", "214"]  # the extensions that answer (internal numbers, never a phone number)
 
@@ -261,7 +262,7 @@ class Runner:
             d = Device(mac=mac_of(key), doors=doors, tz="America/New_York", clock=clock, log_capacity=LOG_ROWS)
             snap = self.state / "devices" / f"{key}.json"
             if snap.exists():
-                d.restore(json.loads(snap.read_text()))
+                d.restore(json.loads(snap.read_text()), rowid_gap=ROWID_GAP)
                 log.info("%s: restored (%d events in its log)", key, len(d.log))
             self.devices[key], self.clocks[key] = d, clock
             server, _ = serve(d, port=port)
