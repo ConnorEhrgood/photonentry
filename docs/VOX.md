@@ -53,6 +53,24 @@ a minute per organization at most.
 - **Later (ARCHITECTURE §9.2):** the lockdown feature code (`*55` and a PIN, never a code containing 911) calling PhotonEntry's lockdown, and the
   PhotonVox app's Unlock button (R2), which goes to PhotonEntry's API with the person's own session.
 
+## Agreed with v1 (2026-11-14; PhotonVox is building its side, not deployed)
+
+- `sip.server` is the phone system's SIP domain (FusionPBX is multi-tenant by domain), `username` the extension number (register name = auth
+  name); port and transport come from the engine (5060/udp today, TLS later).
+- A door station's account reaches only its own call flow: any digits it dials go there, except 911/933 (with or without 8 or 9), which go to
+  the emergency route. **PhotonEntry sets the intercom's call button to "0"** (the Akuvox key for it is a bench item: AKUVOX-AUTOP.md §6). No
+  "dial" field in the contract.
+- Door flows ring users and ring groups, open or closed by hours; menus and voicemail are refused as door targets (a menu would swallow the
+  `#`). v1 proves `#` as RFC 2833 on the user and ring-group paths on staging. No outside-number outcome yet.
+- `door-calls`: `call.id` is FreeSWITCH's call UUID; `ended_at` can lag the hangup by the engine's call-record import interval (seconds), so a
+  call that just ended may briefly read as in progress (PhotonEntry asks 20 s after the door opened, and again until 10 minutes). An outside
+  number answering is "…1234". `person_id` is the directory person whose email matches the answering user's, else null.
+- Tokens `pvx_entry_<random>`, stored hashed, shown once, revocable; PhotonVox capability `vox.entry.manage` (admin, owner; sensitive).
+- `door-stations` lists the **published** phone system's doors (never a draft), each once its SIP password exists; station ids are the
+  document's door keys (`^[a-z0-9-]+$`). 400 for a bad `at` or `window_s`.
+- Open: whether the SIP domain resolves to the engine for an intercom on the customer's network, or intercoms need an outbound proxy (then an
+  optional `sip.outbound_proxy`).
+
 ## PhotonEntry's side (built 2026-11-14)
 
 `app/vox.py` (the client, the SIP-account sync and the call matching), the `vox_link` table and `intercom.vox_station_id` (migration 0005),

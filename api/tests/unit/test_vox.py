@@ -38,14 +38,14 @@ def answer(status, body):
 def test_door_stations_and_a_call():
     fetch, asked = answer(200, STATIONS)
     [s] = vox.stations(fetch, "tok", ORG)
-    assert (s.id, s.extension, s.sip.transport, s.sip.password) == ("ds-7f3a", "901", "tls", "Rk2v9QpL4xT7mW1z")
+    assert (s.id, s.extension, s.sip.transport, s.sip.password) == ("front-door", "901", "udp", "Rk2v9QpL4xT7mW1z")
     assert asked[0][:2] == ("https://api.vox.photonind.com/integrations/entry/v1/door-stations", "tok")
     fetch, asked = answer(200, CALL)
-    call = vox.door_call(fetch, "tok", ORG, "ds-7f3a", AT)
+    call = vox.door_call(fetch, "tok", ORG, "front-door", AT)
     assert call.answered_by.name == "Front desk (Ann Lee)" and call.ended_at is None
-    assert asked[0][2] == {"station": "ds-7f3a", "at": AT.isoformat(), "window_s": "120"}
+    assert asked[0][2] == {"station": "front-door", "at": AT.isoformat(), "window_s": "120"}
     fetch, _ = answer(200, {**CALL, "call": None})
-    assert vox.door_call(fetch, "tok", ORG, "ds-7f3a", AT) is None
+    assert vox.door_call(fetch, "tok", ORG, "front-door", AT) is None
 
 
 def unreachable(url, token, params):
@@ -69,16 +69,16 @@ def test_every_refusal_is_a_sentence_never_data(fetch, words):
 def test_a_call_about_another_station_or_a_missing_one():
     fetch, _ = answer(200, {**CALL, "station_id": "ds-other"})
     with pytest.raises(vox.VoxError, match="another door station"):
-        vox.door_call(fetch, "tok", ORG, "ds-7f3a", AT)
+        vox.door_call(fetch, "tok", ORG, "front-door", AT)
     with pytest.raises(vox.NotFound):
-        vox.door_call(answer(404, None)[0], "tok", ORG, "ds-7f3a", AT)
+        vox.door_call(answer(404, None)[0], "tok", ORG, "front-door", AT)
 
 
 def test_a_station_s_sip_account_onto_an_intercom():
     [s] = vox.stations(answer(200, STATIONS)[0], "tok", ORG)
     i = Intercom(sip_server="", sip_port=5061, sip_transport="tls", sip_user="", sip_password_sealed="", vox_station_id="")
     assert vox.copy_sip(i, s, AT) is True
-    assert (i.vox_station_id, i.sip_server, i.sip_user, i.sip_synced_at) == ("ds-7f3a", "cedar.pbx.photonind.com", "901-k3v9", AT)
+    assert (i.vox_station_id, i.sip_server, i.sip_user, i.sip_synced_at) == ("front-door", "cedar-works.pbx.photonind.com", "901", AT)
     assert crypto.unseal(i.sip_password_sealed) == "Rk2v9QpL4xT7mW1z" and "Rk2v9" not in i.sip_password_sealed
     assert vox.copy_sip(i, s, AT) is False                                         # unchanged: nothing to give the intercom
     rotated = copy.deepcopy(STATIONS)

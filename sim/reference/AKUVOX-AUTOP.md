@@ -96,3 +96,5 @@ Bench item: encrypt a file with Akuvox's tool, find the scheme, then add `Key16M
 5. MakeCall, HangUp and tamper action URLs arrive; `$remote` is filled.
 6. AES: the scheme of Akuvox's tool, then `Key16Mac`.
 7. High Security Mode (on after a factory reset [SEC]) does not block any of it.
+8. The call button's number: find the key that sets what the intercom dials when the button is pressed, and set it to "0" (PhotonVox routes
+   any digits from a door station to its flow, docs/VOX.md). Not in the public sheets read so far.
