@@ -30,7 +30,7 @@ class FakeVox:
 
     def __init__(self, org: str) -> None:
         self.org, self.down, self.status = org, False, 200
-        self.stations = {"ds-1": self.station("ds-1", "Front door", "901", "pw-one-0123456789")}
+        self.stations = {"ds-1": self.station("ds-1", "Front door", "150", "pw-one-0123456789")}
         self.calls: list = []                 # (station, start, end, answered_by)
         self.asked: list = []
 
@@ -92,7 +92,7 @@ def test_connecting_checks_the_token_with_photonvox_first(client, world, link, f
     assert TOKEN not in str(r.json()) and crypto.unseal(db.get(VoxLink, uuid.UUID(world.a)).token_sealed) == TOKEN
     # The stations, to choose from: never their passwords.
     st = client.get(f"/tenants/{world.a}/integrations/vox/stations", headers=auth("a-admin")).json()
-    assert st == [{"id": "ds-1", "name": "Front door", "site_id": None, "extension": "901"}]
+    assert st == [{"id": "ds-1", "name": "Front door", "site_id": None, "extension": "150"}]
     fake_vox.down = True
     r = client.get(f"/tenants/{world.a}/integrations/vox/stations", headers=auth("a-admin"))
     assert r.status_code == 502 and "could not be reached" in r.json()["detail"]["detail"]
@@ -113,13 +113,13 @@ def test_an_intercom_takes_its_door_stations_sip_account(client, world, link, fa
     r = intercom(client, world, ids, vox_station_id="ds-1", sip_server="typed.example")
     assert r.status_code == 201, r.text
     ic = r.json()
-    assert (ic["vox_station_id"], ic["sip_server"], ic["sip_user"], ic["sip_password_set"]) == ("ds-1", "cedar.pbx.photonind.com", "901-k3v9", True)
+    assert (ic["vox_station_id"], ic["sip_server"], ic["sip_user"], ic["sip_password_set"]) == ("ds-1", "cedar.pbx.photonind.com", "150-k3v9", True)
     row = db.get(Intercom, uuid.UUID(ic["id"]))
     assert crypto.unseal(row.sip_password_sealed) == "pw-one-0123456789"
     base = f"/tenants/{world.a}/sites/{world.a1}/intercoms/{ic['id']}"
     # Let go of the station: the SIP account stays as it is, typed in from now on.
     r = client.patch(base, headers=auth("a-admin"), json={"vox_station_id": ""})
-    assert r.json()["vox_station_id"] == "" and r.json()["sip_user"] == "901-k3v9"
+    assert r.json()["vox_station_id"] == "" and r.json()["sip_user"] == "150-k3v9"
     fake_vox.down = True
     r = client.patch(base, headers=auth("a-admin"), json={"vox_station_id": "ds-1"})
     assert r.status_code == 502 and "could not be reached" in r.json()["detail"]["detail"]

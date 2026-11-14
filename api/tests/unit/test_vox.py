@@ -38,7 +38,7 @@ def answer(status, body):
 def test_door_stations_and_a_call():
     fetch, asked = answer(200, STATIONS)
     [s] = vox.stations(fetch, "tok", ORG)
-    assert (s.id, s.extension, s.sip.transport, s.sip.password) == ("front-door", "901", "udp", "Rk2v9QpL4xT7mW1z")
+    assert (s.id, s.extension, s.sip.transport, s.sip.password) == ("front-door", "150", "udp", "Rk2v9QpL4xT7mW1z")
     assert asked[0][:2] == ("https://api.vox.photonind.com/integrations/entry/v1/door-stations", "tok")
     fetch, asked = answer(200, CALL)
     call = vox.door_call(fetch, "tok", ORG, "front-door", AT)
@@ -78,7 +78,7 @@ def test_a_station_s_sip_account_onto_an_intercom():
     [s] = vox.stations(answer(200, STATIONS)[0], "tok", ORG)
     i = Intercom(sip_server="", sip_port=5061, sip_transport="tls", sip_user="", sip_password_sealed="", vox_station_id="", sip_outbound_proxy="")
     assert vox.copy_sip(i, s, AT) is True
-    assert (i.vox_station_id, i.sip_server, i.sip_user, i.sip_synced_at) == ("front-door", "cedar-works.pbx.photonind.com", "901", AT)
+    assert (i.vox_station_id, i.sip_server, i.sip_user, i.sip_synced_at) == ("front-door", "cedar-works.pbx.photonind.com", "150", AT)
     assert crypto.unseal(i.sip_password_sealed) == "Rk2v9QpL4xT7mW1z" and "Rk2v9" not in i.sip_password_sealed
     assert vox.copy_sip(i, s, AT) is False                                         # unchanged: nothing to give the intercom
     assert i.sip_outbound_proxy == ""
