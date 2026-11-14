@@ -417,8 +417,10 @@ It is signed by name, kept in the audit trail, and shown on the door. A change o
 
 **Built (2026-11-14):** records are append-only; the newest one in force makes the door "in service"; an admin returns a door to "needs
 commissioning" with a reason (a new lock is a new record), and moving the door to another controller door does it by itself. In West Virginia the
-installer's current SP-LV license is required; any license named must be for the site's state and current. **Open question for Connor:** "in
-service" is shown and audited but does not yet stop anything (an uncommissioned door still gets its settings). Should it, and what exactly?
+installer's current SP-LV license is required; any license named must be for the site's state and current. **Held back (decision 27, built
+2026-11-14):** a door not in service gets only the installer test setup (access groups marked "Installer test", their schedules and people), no
+unlock schedule and nobody else's card or PIN; signing or voiding its record republishes the site as last published (never an admin's drafts),
+so the real settings arrive or leave by themselves. Intercoms, remote unlock and lockdown still work on it.
 
 ### 7.3 Who may act remotely
 

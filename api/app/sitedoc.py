@@ -16,9 +16,9 @@ from typing import Dict, List
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import crypto
+from app import commissioning, crypto
 from app.document import SiteDocument
-from app.models import AccessGroup, Cardholder, CardholderGroup, Credential, Door, HolidayCalendar, Intercom, Schedule, Site, utcnow
+from app.models import AccessGroup, Cardholder, CardholderGroup, Commissioning, Credential, Door, HolidayCalendar, Intercom, Schedule, Site, utcnow
 from app.passes import ended_ids
 
 
@@ -51,13 +51,27 @@ def build(db: Session, site: Site) -> SiteDocument:
         "doors": [{"id": str(d.id), "name": d.name, "controller_id": str(d.controller_id), "controller_door": d.controller_door,
                    "access_time_s": d.access_time_s, "open_too_long_s": d.open_too_long_s, "pre_alarm_s": d.pre_alarm_s,
                    "unlock_schedule_id": str(d.unlock_schedule_id) if d.unlock_schedule_id else None} for d in doors],
-        "access_groups": [{"id": str(g.id), "name": g.name, "rules": g.rules} for g in groups],
+        "access_groups": [{"id": str(g.id), "name": g.name, "rules": g.rules, "installer_test": g.installer_test} for g in groups],
+        "commissioned_doors": in_service(db, doors),
         "cardholders": [_holder(h, sorted(by_holder[h.id]), creds_by_holder.get(h.id, [])) for h in holders],
         # Only the hash of each relay password leaves for the controller: entry-link checks the intercom's password against it.
         "intercoms": [{"id": str(i.id), "name": i.name, "door_id": str(i.door_id),
                        "secret_sha256": hashlib.sha256(crypto.unseal(i.relay_secret_sealed).encode()).hexdigest()} for i in intercoms],
     }
     return SiteDocument.model_validate(doc)
+
+
+def in_service(db: Session, doors: List[Door]) -> List[str]:
+    """The site's doors that are commissioned now (app/commissioning.py): only they get the customer's real settings (decision 27)."""
+    newest: Dict[uuid.UUID, Commissioning] = {}
+    for c in db.execute(select(Commissioning).where(Commissioning.door_id.in_([d.id for d in doors])).order_by(Commissioning.signed_at)).scalars():
+        newest[c.door_id] = c
+    out = []
+    for d in doors:
+        c = newest.get(d.id)
+        if commissioning.status(c.controller_door if c else None, bool(c and c.voided_at), d.controller_door).in_service:
+            out.append(str(d.id))
+    return sorted(out)
 
 
 def _holder(h: Cardholder, groups: List[str], creds: List[Credential]) -> dict:

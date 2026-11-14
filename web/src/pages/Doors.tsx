@@ -9,7 +9,7 @@ import { ago } from '../lib/format'
 import { useLoad } from '../lib/useLoad'
 import { IntercomsSection } from './Intercoms'
 import { LockdownDialog, LockdownPanel } from '../components/Lockdown'
-import { CommissionDialog, CommissioningBadge, RecordDialog } from './Commissioning'
+import { CommissionDialog, CommissioningBadge, HeldBackBanner, RecordDialog } from './Commissioning'
 
 /** How a controller is doing, in a word: offline, refusing its settings, applying them, or fine. Never colour alone (DESIGN.md). */
 export function controllerState(c: Controller, now = Date.now()): { tone: 'ok' | 'info' | 'warning' | 'error'; text: string } {
@@ -105,9 +105,16 @@ export function DoorsPage() {
       </PageHeader>
       {note && <p className="ph-banner ph-banner-info" role="status">{note}</p>}
       <ErrorText>{error}</ErrorText>
+      {commissioning.data && <HeldBackBanner doors={commissioning.data.doors} />}
       {active && <LockdownPanel lockdown={active} canEnd={can('entry.lockdown')} onEnd={() => setDialog('end')} />}
       {opened && site && commissioning.data && (opened.sign
-        ? <CommissionDialog base={`/tenants/${t}/sites/${site.id}`} d={opened.d} choices={commissioning.data} onClose={() => setOpened(null)} onSaved={commissioning.reload} />
+        ? <CommissionDialog base={`/tenants/${t}/sites/${site.id}`} d={opened.d} choices={commissioning.data} onClose={() => setOpened(null)}
+            onSaved={async (settings) => {
+              await commissioning.reload()
+              setNote(settings === 'updated' ? `${opened.d.door} is in service: its real settings are on their way to the controller.`
+                : settings === 'not_published' ? `${opened.d.door} is signed off; its real settings go out with the site's first publish.`
+                  : `${opened.d.door} is signed off, but its controller's settings could not be updated: publish the site to see why.`)
+            }} />
         : <RecordDialog base={`/tenants/${t}/sites/${site.id}`} d={opened.d} choices={commissioning.data} canVoid={can('entry.config.manage')}
             onClose={() => setOpened(null)} onChanged={commissioning.reload} />)}
       {dialog && site && <LockdownDialog base={`/tenants/${t}/sites/${site.id}`} siteName={site.name} doors={doors.data} ending={dialog === 'end'}
@@ -122,7 +129,10 @@ export function DoorsPage() {
               {doors.data.map((d) => (
                 <tr key={d.id}>
                   <td className="pe-who" data-label="Door"><strong>{d.name}</strong></td>
-                  <td data-label="Schedule">{unlocking(d) ?? <span className="ph-hint">No: locked unless someone has access</span>}</td>
+                  <td data-label="Schedule">{unlocking(d)
+                    ? (commissioning.data?.doors.find((x) => x.door_id === d.id)?.in_service === false
+                      ? <>{unlocking(d)} <span className="ph-hint">(once commissioned)</span></> : unlocking(d))
+                    : <span className="ph-hint">No: locked unless someone has access</span>}</td>
                   <td data-label="Timing">{d.access_time_s} s to open; alarm after {d.open_too_long_s} s</td>
                   <td data-label="Commissioning">{(() => {
                     const c = commissioning.data?.doors.find((x) => x.door_id === d.id)

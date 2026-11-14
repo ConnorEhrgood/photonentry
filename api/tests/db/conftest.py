@@ -143,3 +143,19 @@ class World:
 @pytest.fixture()
 def world(fake) -> World:
     return World(fake)
+
+
+def commission_site(site_id) -> None:
+    """Sign every door at the site off (a commissioning record each, as an installer would), so the customer's real settings reach them
+    (decision 27). Tests about publishing people's access start from commissioned doors; tests about holding doors back do not call this."""
+    import uuid as _uuid
+    from sqlalchemy import select as _select
+    from app.db import SystemSession
+    from app.models import Commissioning, Door
+    with SystemSession() as s:
+        for d in s.execute(_select(Door).where(Door.site_id == _uuid.UUID(str(site_id)))).scalars():
+            s.add(Commissioning(id=_uuid.uuid4(), tenant_id=d.tenant_id, site_id=d.site_id, door_id=d.id, controller_door=d.controller_door,
+                                jurisdiction="ZZ", lock_type="strike_fail_secure", failure_state="fail_secure", egress="Lever",
+                                special_locking="none", fire_release="none_present", rex_checked=True, contact_checked=True,
+                                ahj_reference="Test", installer="Test installer", signed_by=_uuid.uuid4(), signed_by_label="Test"))
+        s.commit()

@@ -78,12 +78,13 @@ export function GroupDialog({ base, group, doors, schedules, onClose, onSaved }:
   const [name, setName] = useState(group?.name ?? '')
   const [rules, setRules] = useState<DraftRule[]>(group?.rules.map((r) => ({ doors: r.doors, schedule_id: r.schedule_id ?? '' })) ?? [{ doors: [], schedule_id: '' }])
   const [forVisitors, setForVisitors] = useState(!!group?.for_visitors)
+  const [installerTest, setInstallerTest] = useState(!!group?.installer_test)
   const [error, setError] = useState<string | null>(null)
   const set = (i: number, r: Partial<DraftRule>) => setRules(rules.map((x, j) => (j === i ? { ...x, ...r } : x)))
   const bad = rules.some((r) => r.doors.length === 0)
   const save = async () => {
     setError(null)
-    const body = { name: name.trim(), rules: rules.map((r) => ({ doors: r.doors, schedule_id: r.schedule_id || null })), for_visitors: forVisitors }
+    const body = { name: name.trim(), rules: rules.map((r) => ({ doors: r.doors, schedule_id: r.schedule_id || null })), for_visitors: forVisitors, installer_test: installerTest }
     try {
       if (group) await api.put(`${base}/groups/${group.id}`, body)
       else await api.post(`${base}/groups`, body)
@@ -115,6 +116,8 @@ export function GroupDialog({ base, group, doors, schedules, onClose, onSaved }:
       <button className="ph-btn ph-btn-secondary ph-btn-sm" onClick={() => setRules([...rules, { doors: [], schedule_id: '' }])}>Add a rule</button>
       <label className="ph-check"><input type="checkbox" checked={forVisitors} onChange={(e) => setForVisitors(e.target.checked)} /> Visitors’ passes may use this group
         <span className="ph-hint"> (front-desk operators can then give it to visitors, for up to 31 days)</span></label>
+      <label className="ph-check"><input type="checkbox" checked={installerTest} onChange={(e) => setInstallerTest(e.target.checked)} /> Installer test group
+        <span className="ph-hint"> (the installer’s test cards and PINs: the only access a door gets until it is commissioned)</span></label>
       {bad && <p className="ph-error">Each rule opens at least one door.</p>}
       <ErrorText>{error}</ErrorText>
       <div className="ph-modal-footer">

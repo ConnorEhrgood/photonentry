@@ -96,10 +96,12 @@ describe('editing access in the app', () => {
     await user.selectOptions(within(dialog).getAllByLabelText('When')[1], 'sc1')
     await user.click(within(dialog).getAllByRole('button', { name: 'Remove this rule' })[0])
     await user.click(within(dialog).getByLabelText(/Visitors’ passes may use this group/))
+    await user.click(within(dialog).getByLabelText(/Installer test group/))
+    await user.click(within(dialog).getByLabelText(/Installer test group/))
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(state.groups).toHaveLength(2))
     expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/groups'))?.body).toEqual({ name: 'Night shift', rules: [{ doors: ['d1'], schedule_id: 'sc1' }],
-      for_visitors: true })
+      for_visitors: true, installer_test: false })
     const card = (await screen.findByRole('heading', { name: 'Staff' })).closest('.ph-card') as HTMLElement
     await user.click(within(card).getByRole('button', { name: 'Change' }))
     dialog = screen.getByRole('dialog', { name: 'Change Staff' })
@@ -129,6 +131,14 @@ describe('editing access in the app', () => {
     await user.click(within(item).getByRole('button', { name: 'Remove' }))
     await user.click(within(item).getByRole('button', { name: 'Yes' }))
     await waitFor(() => expect(state.holidays.map((h) => h.name)).toEqual(['Christmas Day', "New Year's Day"]))
+  })
+
+  it('marks the installer test group', async () => {
+    const { state, routes } = world()
+    state.groups = [...state.groups, { id: 'g9', name: 'Installer', installer_test: true, rules: [{ doors: ['d1'], schedule_id: null }] }]
+    open(routes)
+    const heading = await screen.findByRole('heading', { name: /Installer/ })
+    expect(within(heading).getByText('Installer test')).toBeInTheDocument()
   })
 
   it('a viewer sees access but cannot change it', async () => {

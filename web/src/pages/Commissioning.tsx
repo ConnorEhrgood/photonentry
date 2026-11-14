@@ -6,7 +6,21 @@ import { ConfirmButton, ErrorText, Loading, Modal, PageHeader, StatusBadge } fro
 import { useLoad } from '../lib/useLoad'
 
 const STATES: Record<string, string> = { PA: 'Pennsylvania', OH: 'Ohio', WV: 'West Virginia', ZZ: 'Elsewhere' }
-const WHY: Record<string, string> = { never: 'Needs commissioning', voided: 'Needs commissioning again', moved: 'Rewired: needs commissioning' }
+const WHY: Record<string, string> = { never: 'Not commissioned: test setup only', voided: 'Needs commissioning again: test setup only',
+  moved: 'Rewired: test setup only' }
+
+/** Said on the Doors page whenever a door is not signed off (decision 27). */
+export function HeldBackBanner({ doors }: { doors: DoorCommissioning[] }) {
+  const held = doors.filter((d) => !d.in_service)
+  if (held.length === 0) return null
+  return (
+    <div className="ph-banner ph-banner-warning" role="status">
+      <strong>{held.length === doors.length ? 'No door here is commissioned yet' : `${held.length} of ${doors.length} doors are not commissioned yet`}</strong>
+      {': '}{held.map((d) => d.door).join(', ')}. Until each is signed off it gets only the installer test setup (groups marked “Installer test”): nobody else’s
+      card or PIN, and no unlock schedule. People’s real access reaches each door by itself when its commissioning record is signed.
+    </div>
+  )
+}
 const day = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -67,7 +81,7 @@ export function RecordDialog({ base, d, choices, canVoid, onClose, onChanged }: 
 
 /** The installer records the door (ARCHITECTURE §7.2) and signs it in their own name. */
 export function CommissionDialog({ base, d, choices, onClose, onSaved }: {
-  base: string; d: DoorCommissioning; choices: SiteCommissioning; onClose: () => void; onSaved: () => Promise<void>
+  base: string; d: DoorCommissioning; choices: SiteCommissioning; onClose: () => void; onSaved: (settings?: string) => Promise<void>
 }) {
   const { api } = useAuth()
   const { current } = useTenant()
@@ -85,7 +99,11 @@ export function CommissionDialog({ base, d, choices, onClose, onSaved }: {
   const save = async () => {
     setProblems([])
     const body = { ...f, license_id: f.license_id || null, fire_tested_on: f.fire_release === 'tested' ? f.fire_tested_on || null : null }
-    try { await api.post(`${base}/doors/${d.door_id}/commissioning`, body); await onSaved(); onClose() } catch (e) {
+    try {
+      const r = await api.post<{ settings: string; settings_problem?: string }>(`${base}/doors/${d.door_id}/commissioning`, body)
+      await onSaved(r.settings)
+      onClose()
+    } catch (e) {
       const data = (e as { data?: { problems?: string[] } }).data
       setProblems(data?.problems ?? [message(e)])
     }

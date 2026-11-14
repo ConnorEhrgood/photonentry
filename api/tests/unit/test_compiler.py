@@ -181,3 +181,36 @@ def test_the_sample_settings_match_the_compiler():
     """contract/settings/sample.json is what the C side's tests apply; regenerate it with scripts/contract.py when the compiler changes."""
     with open(os.path.join(ROOT, "contract", "settings", "sample.json")) as f:
         assert json.load(f) == compile_controller(site(), "ctl-a", INVENTORY_A)
+
+
+# ---- doors not yet commissioned (decision 27) ----
+
+
+def _with_test_group(**over):
+    doc = site(**over)
+    groups = [g.model_dump() for g in doc.access_groups] + [{"id": "installer", "name": "Installer test", "installer_test": True,
+                                                             "rules": [{"doors": ["front", "side"], "schedule_id": "unused"}]}]
+    holders = [c.model_dump() for c in doc.cardholders] + [{"id": "tech", "name": "Ina Installer", "groups": ["installer"],
+                                                          "credentials": [{"id": "tech-pin", "kind": "pin", "pin": "9090"}]}]
+    return site(access_groups=groups, cardholders=holders, **over)
+
+
+def test_a_door_not_commissioned_gets_only_the_installer_test_setup():
+    out = compile_controller(_with_test_group(commissioned_doors=["server"]), "ctl-a", INVENTORY_A)   # front and side are not signed off
+    assert [p["token"] for p in out["access_profiles"]] == ["pe-g-installer"]
+    assert {c["token"] for c in out["credentials"]} == {"pe-c-tech-pin"}                                 # nobody's real card or PIN
+    assert [u["Name"] for u in out["users"]] == ["Ina Installer"]
+    assert [s["Name"] for s in out["schedules"]] == ["Unused"]                                          # only the test group's schedule
+    assert out["door_schedules"] == [] and all(d["DoorScheduleConfiguration"] == "" for d in out["doors"])   # no real unlock schedule
+    assert [d["AccessTime"] for d in out["doors"]] == ["PT7S", "PT5S"]                                  # the door's own timings still apply
+
+
+def test_once_signed_off_the_real_settings_flow_and_the_test_setup_stays():
+    held = compile_controller(_with_test_group(commissioned_doors=["server", "side"]), "ctl-a", INVENTORY_A)   # side is signed off
+    staff = next(p for p in held["access_profiles"] if p["token"] == "pe-g-staff")
+    assert {pol["AccessPoint"] for pol in staff["AccessPolicy"]} == {"ap-a2-in"}                       # staff's rule reaches the side door only
+    assert held["door_schedules"] == []                                                                 # the front door (unlock schedule) is still held
+    done = compile_controller(_with_test_group(commissioned_doors=["front", "side", "server"]), "ctl-a", INVENTORY_A)
+    assert done["door_schedules"][0]["token"] == "pe-d-front" and {p["token"] for p in done["access_profiles"]} >= {"pe-g-staff", "pe-g-installer"}
+    # No list at all (a document from before decision 27): nothing held back.
+    assert compile_controller(site(), "ctl-a", INVENTORY_A)["door_schedules"][0]["token"] == "pe-d-front"

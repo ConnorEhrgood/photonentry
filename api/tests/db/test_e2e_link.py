@@ -25,7 +25,7 @@ from app.main import create_app
 from app.models import Controller
 from axis_sim.device import Device
 from axis_sim.server import SimClock, run
-from tests.db.conftest import VERIFIER, auth
+from tests.db.conftest import VERIFIER, auth, commission_site
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 MAC = "00408c184bdb"
@@ -100,13 +100,25 @@ def test_a_door_from_claim_to_unlock_through_the_api(stack):
     pub = api.post(f"/tenants/{t}/sites/{s}/publish", headers=admin)
     assert pub.status_code == 200, pub.text
     until(lambda: api.get(f"/tenants/{t}/controllers/{cid}", headers=admin).json()["settings"]["current"], "the settings applied")
-    assert "pe-c-" + api.get(f"/tenants/{t}/cardholders/{holder['id']}/credentials", headers=admin).json()[0]["id"] in stack.device.store["Credential"]
-
-    # Monday 10:00 at the site: Bob's card opens the side door; the event comes back with his name.
+    cred = "pe-c-" + api.get(f"/tenants/{t}/cardholders/{holder['id']}/credentials", headers=admin).json()[0]["id"]
+    # Decision 27: the side door is not commissioned yet, so it got only the installer test setup: Bob's card is not on the controller.
+    assert cred not in stack.device.store["Credential"]
     target = datetime(2026, 11, 16, 10, 0, tzinfo=ZoneInfo("America/New_York")).astimezone(timezone.utc)
     stack.clock.offset = target - datetime.now(timezone.utc)
+    bob = [{"Name": "Card", "Value": card_data(Card(format="w34", number=3735928559))}]
     with stack.device.lock:
-        assert stack.device.present(R2IN, [{"Name": "Card", "Value": card_data(Card(format="w34", number=3735928559))}]) == (True, "Granted")
+        assert stack.device.present(R2IN, bob)[0] is False
+
+    # The installer signs the side door off: the real settings reach the controller by themselves, with no new publish.
+    signed = api.post(f"/tenants/{t}/sites/{s}/doors/{side['id']}/commissioning", headers=admin, json={
+        "jurisdiction": "ZZ", "lock_type": "strike_fail_secure", "failure_state": "fail_secure", "egress": "Lever", "special_locking": "none",
+        "fire_release": "none_present", "rex_checked": True, "contact_checked": True, "ahj_reference": "Permit 1", "installer": "Ann Lee"})
+    assert signed.status_code == 201 and signed.json()["settings"] == "updated", signed.text
+    until(lambda: cred in stack.device.store["Credential"], "Bob's card on the controller after the sign-off")
+
+    # Monday 10:00 at the site: Bob's card opens the side door; the event comes back with his name.
+    with stack.device.lock:
+        assert stack.device.present(R2IN, bob) == (True, "Granted")
 
     def granted():
         return [e for e in api.get(f"/tenants/{t}/sites/{s}/events", headers=op).json() if e["topic"] == "AccessControl/AccessGranted/Credential"]

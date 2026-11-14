@@ -59,7 +59,7 @@ export interface Door {
 export interface Window { days: string[]; start: string; end: string }
 export interface Schedule { id: string; name: string; windows: Window[]; on_holidays: 'off' | 'normal' }
 export interface Rule { doors: string[]; schedule_id: string | null }
-export interface Group { id: string; name: string; rules: Rule[]; for_visitors?: boolean }
+export interface Group { id: string; name: string; rules: Rule[]; for_visitors?: boolean; installer_test?: boolean }
 export interface Holiday { day: string; name: string }
 
 export interface Cardholder {

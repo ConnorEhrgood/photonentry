@@ -64,7 +64,7 @@ def test_row_level_security_on_licenses(client, world):
 
 
 def test_signing_a_doors_record_and_needing_it_again(client, world, link, db):
-    ids = setup_site(client, world, link)
+    ids = setup_site(client, world, link, commissioned=False)
     base = f"/tenants/{world.a}/sites/{world.a1}"
     st = client.get(f"{base}/commissioning", headers=auth("a-viewer")).json()
     assert st["jurisdiction"] == "ZZ" and {d["why"] for d in st["doors"]} == {"never"}
@@ -99,7 +99,7 @@ def test_signing_a_doors_record_and_needing_it_again(client, world, link, db):
 
 
 def test_an_expired_license_and_a_door_moved_to_another_controller_door(client, world, link, db, monkeypatch):
-    ids = setup_site(client, world, link)
+    ids = setup_site(client, world, link, commissioned=False)
     base = f"/tenants/{world.a}/sites/{world.a1}"
     sp = lic(client, world, expires_on="2026-11-13").json()
     r = client.post(f"{base}/doors/{ids['front']}/commissioning", headers=auth("a-admin"), json={**RECORD, "license_id": sp["id"]})
@@ -117,7 +117,7 @@ def test_an_expired_license_and_a_door_moved_to_another_controller_door(client, 
 
 
 def test_records_are_never_edited(client, world, link):
-    ids = setup_site(client, world, link)
+    ids = setup_site(client, world, link, commissioned=False)
     sp = lic(client, world).json()
     client.post(f"/tenants/{world.a}/sites/{world.a1}/doors/{ids['front']}/commissioning", headers=auth("a-admin"), json={**RECORD, "license_id": sp["id"]})
     with as_person(world.pid("a-admin")) as s, pytest.raises(ProgrammingError, match="permission denied"):
@@ -130,3 +130,48 @@ def test_records_are_never_edited(client, world, link):
 def test_a_site_with_no_doors_and_the_real_date(client, world):
     st = client.get(f"/tenants/{world.a}/sites/{world.a2}/commissioning", headers=auth("a-admin")).json()
     assert st["doors"] == [] and st["required_license"] == {"WV": "wv_sp_lv"}
+
+
+def _creds(link, ids):
+    return {c["IdData"][0]["Value"] for c in link.store.latest(ids["controller"])[1]["credentials"]}
+
+
+def test_a_door_not_signed_off_gets_only_the_installer_test_setup_until_it_is(client, world, link, db):
+    from tests.db.test_routes import add_holder
+    ids = setup_site(client, world, link, commissioned=False)
+    base = f"/tenants/{world.a}/sites/{world.a1}"
+    test_group = client.post(f"{base}/groups", headers=auth("a-admin"), json={"name": "Installer test", "installer_test": True,
+                             "rules": [{"doors": [ids["front"], ids["side"]]}]}).json()
+    assert test_group["installer_test"] is True
+    add_holder(client, world, ids, name="Alice Smith", number=10213)                                    # a real person, in Staff
+    tech = client.post(f"/tenants/{world.a}/cardholders", headers=auth("a-admin"), json={"name": "Ina Installer"}).json()
+    client.put(f"/tenants/{world.a}/cardholders/{tech['id']}/groups", headers=auth("a-admin"), json={"group_ids": [test_group["id"]]})
+    client.post(f"/tenants/{world.a}/cardholders/{tech['id']}/credentials", headers=auth("a-admin"), json={"kind": "pin", "pin": "9090"})
+    assert client.post(f"{base}/publish", headers=auth("a-admin")).status_code == 200
+    settings = link.store.latest(ids["controller"])[1]
+    assert _creds(link, ids) == {"9090"} and settings["door_schedules"] == []                          # only the installer's PIN; no unlock schedule
+    # An admin's draft meanwhile (not published): it must not go out with the sign-off.
+    client.post(f"{base}/schedules", headers=auth("a-admin"), json={"name": "Draft hours", "windows": [{"days": ["sa"], "start": "09:00", "end": "12:00"}]})
+    sp = lic(client, world).json()
+    r = client.post(f"{base}/doors/{ids['front']}/commissioning", headers=auth("a-admin"), json={**RECORD, "license_id": sp["id"]})
+    assert r.status_code == 201 and r.json()["settings"] == "updated"
+    after = link.store.latest(ids["controller"])[1]
+    assert len(_creds(link, ids)) == 2 and after["door_schedules"][0]["token"] == f"pe-d-{ids['front']}"   # Alice's card reaches it now
+    assert "Draft hours" not in str(after)
+    # Needing it again takes the real settings away again, at once.
+    v = client.post(f"{base}/doors/{ids['front']}/commissioning/void", headers=auth("a-admin"), json={"reason": "Lock replaced"})
+    assert v.json()["settings"] == "updated" and _creds(link, ids) == {"9090"}
+
+
+def test_signing_off_a_site_never_published_and_one_whose_settings_no_longer_compile(client, world, link):
+    ids = setup_site(client, world, link, commissioned=False)
+    base = f"/tenants/{world.a}/sites/{world.a1}"
+    sp = lic(client, world).json()
+    r = client.post(f"{base}/doors/{ids['front']}/commissioning", headers=auth("a-admin"), json={**RECORD, "license_id": sp["id"]})
+    assert r.status_code == 201 and r.json()["settings"] == "not_published"                            # its first publish carries it
+    assert client.post(f"{base}/publish", headers=auth("a-admin")).status_code == 200
+    from app.link.protocol import Inventory, InventoryDoor
+    link.store.set_inventory(ids["controller"], Inventory(doors=[InventoryDoor(token="door1", access_points=["ap1in"])]))   # door2 is gone
+    r = client.post(f"{base}/doors/{ids['side']}/commissioning", headers=auth("a-admin"), json={**RECORD, "license_id": sp["id"]})
+    assert r.status_code == 201 and r.json()["settings"] == "not_updated" and "door2" in r.json()["settings_problem"]
+    assert r.json()["in_service"] is True                                                               # the record stands; the next publish carries it

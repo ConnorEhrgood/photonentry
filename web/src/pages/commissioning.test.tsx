@@ -37,9 +37,11 @@ describe('commissioning', () => {
         if (tries++ === 0) return new Response(JSON.stringify({ detail: { code: 'incomplete', detail: 'Check the request-to-exit',
           problems: ['Check the request-to-exit', 'Check the door contact'] } }), { status: 422 })
         state = site({ door_id: 'd1', door: 'Main entrance', in_service: true, why: '', record: RECORD })
-        return state.doors[0]
+        return { ...state.doors[0], settings: 'updated' }
       },
     })
+    expect(await screen.findByText(/No door here is commissioned yet/)).toBeInTheDocument()
+    expect(screen.getByText(/gets only the installer test setup/)).toBeInTheDocument()
     await user.click(await screen.findByRole('button', { name: 'Main entrance: commission' }))
     const dialog = screen.getByRole('dialog', { name: 'Commission Main entrance' })
     expect(within(dialog).getByLabelText('State')).toHaveValue('WV')
@@ -62,6 +64,8 @@ describe('commissioning', () => {
     await user.click(within(dialog).getByLabelText('Door contact checked'))
     await user.click(within(dialog).getByRole('button', { name: 'Sign and put in service' }))
     expect(await screen.findByText('In service')).toBeInTheDocument()
+    expect(screen.getByText('Main entrance is in service: its real settings are on their way to the controller.')).toBeInTheDocument()
+    expect(screen.queryByText(/not commissioned yet/)).not.toBeInTheDocument()
     const body = calls.filter((c) => c.method === 'POST').pop()?.body as Record<string, unknown>
     expect(body).toMatchObject({ jurisdiction: 'WV', lock_type: 'strike_fail_secure', license_id: 'l1', fire_tested_on: '2026-11-10', rex_checked: true, contact_checked: true })
   })
@@ -85,7 +89,7 @@ describe('commissioning', () => {
     await user.type(within(dialog).getByLabelText('Needs commissioning again because'), 'New lock fitted')
     await user.click(within(dialog).getByRole('button', { name: 'Needs commissioning again' }))
     await user.click(within(screen.getByRole('group', { name: /out of service/ })).getByRole('button', { name: 'Yes' }))
-    expect(await screen.findByText('Needs commissioning again')).toBeInTheDocument()
+    expect(await screen.findByText('Needs commissioning again: test setup only')).toBeInTheDocument()
     expect(calls.find((c) => c.path.endsWith('/void'))?.body).toEqual({ reason: 'New lock fitted' })
   })
 
@@ -94,7 +98,7 @@ describe('commissioning', () => {
       [`GET ${S}/doors/d1/commissioning`]: [RECORD] }, meWith(OPERATOR))
     const user = userEvent.setup()
     await user.click(await screen.findByRole('button', { name: 'Main entrance: commissioning record' }))
-    expect(screen.getAllByText('Rewired: needs commissioning').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Rewired: test setup only').length).toBeGreaterThan(0)
     expect(screen.queryByLabelText('Needs commissioning again because')).not.toBeInTheDocument()
   })
 })
@@ -121,5 +125,36 @@ describe('licenses', () => {
     expect(await screen.findByText('Ann Lee')).toBeInTheDocument()
     await user.selectOptions(screen.getByLabelText('State'), 'PA')
     expect(screen.getByLabelText('Kind')).toHaveValue('')
+  })
+})
+
+
+describe('holding doors back', () => {
+  it('says which doors get only the test setup, and what signing does when the site has not been published', async () => {
+    const user = userEvent.setup()
+    const two = (d1: boolean): SiteCommissioning => ({ ...site({ door_id: 'd1', door: 'Main entrance', in_service: d1, why: d1 ? '' : 'never', record: d1 ? RECORD : null }),
+      doors: [{ door_id: 'd1', door: 'Main entrance', in_service: d1, why: d1 ? '' : 'never', record: d1 ? RECORD : null },
+        { door_id: 'd2', door: 'Side door', in_service: true, why: '', record: RECORD }] })
+    let state = two(false)
+    app('/doors', { [`GET ${S}/doors`]: [{ ...DOORS[0], unlock_schedule_id: 'sc1' }, { ...DOORS[0], id: 'd2', name: 'Side door' }],
+      [`GET ${S}/schedules`]: [{ id: 'sc1', name: 'Business hours', windows: [], on_holidays: 'off' }], [`GET ${S}/commissioning`]: () => state, [`GET ${T}/licenses`]: LICENSES,
+      [`POST ${S}/doors/d1/commissioning`]: () => { state = two(true); return { ...state.doors[0], settings: 'not_published' } } })
+    expect(await screen.findByText('1 of 2 doors are not commissioned yet')).toBeInTheDocument()
+    expect(screen.getByText('(once commissioned)')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Main entrance: commission' }))
+    const dialog = screen.getByRole('dialog', { name: 'Commission Main entrance' })
+    await user.click(within(dialog).getByRole('button', { name: 'Sign and put in service' }))
+    expect(await screen.findByText(/its real settings go out with the site's first publish/)).toBeInTheDocument()
+  })
+
+  it('signed off, but the controller could not take it', async () => {
+    const user = userEvent.setup()
+    let state = site({ door_id: 'd1', door: 'Main entrance', in_service: false, why: 'never', record: null })
+    app('/doors', { [`GET ${S}/commissioning`]: () => state, [`GET ${T}/licenses`]: LICENSES,
+      [`POST ${S}/doors/d1/commissioning`]: () => { state = site({ door_id: 'd1', door: 'Main entrance', in_service: true, why: '', record: RECORD });
+        return { ...state.doors[0], settings: 'not_updated', settings_problem: 'x' } } })
+    await user.click(await screen.findByRole('button', { name: 'Main entrance: commission' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Sign and put in service' }))
+    expect(await screen.findByText(/could not be updated: publish the site to see why/)).toBeInTheDocument()
   })
 })

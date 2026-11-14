@@ -71,7 +71,7 @@ export function AccessPage() {
           <div className="pe-cards">
             {groups.map((g) => (
               <div key={g.id} className="ph-card">
-                <h3>{g.name}</h3>
+                <h3>{g.name}{g.installer_test && <> <StatusBadge tone="info">Installer test</StatusBadge></>}</h3>
                 <ul>{g.rules.map((r, i) => <li key={i}>{r.doors.map(door).join(', ')}: <strong>{sched(r.schedule_id)}</strong></li>)}</ul>
                 {edit && <div className="ph-actions">
                   <button className="ph-btn ph-btn-ghost ph-btn-sm" onClick={() => setEditing({ what: 'group', item: g })}>Change</button>

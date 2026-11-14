@@ -118,6 +118,7 @@ class AccessGroup(_Strict):
     id: str
     name: str = Field(min_length=1, max_length=64)
     rules: List[Rule] = Field(min_length=1)
+    installer_test: bool = False     # the installer's test setup: the only access a door not yet commissioned gets (decision 27)
 
     _id = field_validator("id")(_check_id)
 
@@ -188,6 +189,9 @@ class SiteDocument(_Strict):
     access_groups: List[AccessGroup] = Field(default_factory=list)
     cardholders: List[Cardholder] = Field(default_factory=list)
     intercoms: List[Intercom] = Field(default_factory=list)
+    # The doors that are in service (commissioned, ARCHITECTURE §7.2). None: no door is held back (documents made before decision 27, tests).
+    # A door not in the list gets only installer-test groups' access and no unlock schedule.
+    commissioned_doors: Optional[List[str]] = None
 
     def problems(self) -> List[str]:
         """Every reference and uniqueness problem, as plain sentences with a path. Empty: the document can be compiled."""

@@ -16,7 +16,7 @@ from app.document import Card
 from app.link import signing
 from app.link.protocol import Inventory, InventoryDoor
 from app.models import AuditLog, Controller, Credential, SettingsVersion
-from tests.db.conftest import auth
+from tests.db.conftest import auth, commission_site
 
 DEVICE = {"model": "AXIS A1610", "serial": "B8A44F000001", "firmware": "12.6.1", "app_version": "0.1.0"}
 INVENTORY = Inventory(doors=[InventoryDoor(token="door1", name="Door 1", access_points=["ap1in", "ap1out"]),
@@ -31,7 +31,7 @@ def hello(link, code="ABCD-EFGH"):
     return signing.key_id(pub)
 
 
-def setup_site(client, world, link, who="a-admin"):
+def setup_site(client, world, link, who="a-admin", commissioned=True):
     """Claim a controller at site a1, map its two doors, add office hours, a holiday, a staff group; returns the ids."""
     h = auth(who)
     kid = hello(link)
@@ -48,6 +48,8 @@ def setup_site(client, world, link, who="a-admin"):
     client.put(f"/tenants/{t}/sites/{s}/holidays", headers=h, json={"days": [{"day": "2026-12-25", "name": "Christmas"}]})
     staff = client.post(f"/tenants/{t}/sites/{s}/groups", headers=h, json={
         "name": "Staff", "rules": [{"doors": [front["id"], side["id"]], "schedule_id": office["id"]}]}).json()
+    if commissioned:
+        commission_site(s)                       # signed off, so the customer's real settings reach them (decision 27)
     return {"controller": cid, "kid": kid, "office": office["id"], "front": front["id"], "side": side["id"], "staff": staff["id"]}
 
 
@@ -346,6 +348,7 @@ def test_an_office_from_its_template_to_published_settings(client, world, link):
     holder = client.post(f"/tenants/{world.a}/cardholders", headers=h, json={"name": "Ann"}).json()
     client.put(f"/tenants/{world.a}/cardholders/{holder['id']}/groups", headers=h, json={"group_ids": [made["groups"]["staff"], made["groups"]["it"]]})
     client.post(f"/tenants/{world.a}/cardholders/{holder['id']}/credentials", headers=h, json={"kind": "pin", "pin": "2468"})
+    commission_site(world.a1)
     pub = client.post(f"{base}/publish", headers=h)
     assert pub.status_code == 200, pub.text
     settings = link.store.latest(cid)[1]
@@ -388,6 +391,7 @@ def test_every_template_applies_and_publishes(client, world, link, key, slots):
     holder = client.post(f"/tenants/{world.a}/cardholders", headers=h, json={"name": "Someone"}).json()
     client.put(f"/tenants/{world.a}/cardholders/{holder['id']}/groups", headers=h, json={"group_ids": list(made["groups"].values())})
     client.post(f"/tenants/{world.a}/cardholders/{holder['id']}/credentials", headers=h, json={"kind": "pin", "pin": "1357"})
+    commission_site(world.a1)
     pub = client.post(f"{base}/publish", headers=h)
     assert pub.status_code == 200, pub.text
     settings = link.store.latest(cid)[1]

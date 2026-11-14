@@ -219,10 +219,12 @@ class GroupIn(BaseModel):
     name: str = Field(min_length=1, max_length=64)
     rules: List[Rule] = Field(min_length=1)
     for_visitors: bool = False          # operators may give it to visitors' passes (app/passes.py)
+    installer_test: bool = False        # the installer's test setup: the only access doors not yet commissioned get (decision 27)
 
 
 def group_view(g: AccessGroup) -> Dict[str, Any]:
-    return {"id": str(g.id), "name": g.name, "rules": g.rules, "for_visitors": g.for_visitors}
+    return {"id": str(g.id), "name": g.name, "rules": g.rules, "for_visitors": g.for_visitors,
+            "installer_test": g.installer_test}
 
 
 def _check_rules(db: Session, site: Site, rules: List[Rule]) -> List[Dict[str, Any]]:
@@ -246,7 +248,7 @@ def list_groups(site_id: uuid.UUID, ctx: Ctx = Depends(tenant_ctx), db: Session 
 def add_group(site_id: uuid.UUID, body: GroupIn, ctx: Ctx = Depends(tenant_ctx), db: Session = Depends(get_db)) -> Dict[str, Any]:
     site = site_of(db, ctx, site_id, MANAGE)
     g = AccessGroup(id=uuid.uuid4(), tenant_id=ctx.tenant_id, site_id=site.id, name=body.name, rules=_check_rules(db, site, body.rules),
-                    for_visitors=body.for_visitors)
+                    for_visitors=body.for_visitors, installer_test=body.installer_test)
     db.add(g)
     log(db, ctx, "group.add", site_id=site.id, target_type="group", target_id=g.id, name=g.name)
     db.commit()
@@ -259,7 +261,7 @@ def put_group(site_id: uuid.UUID, group_id: uuid.UUID, body: GroupIn, ctx: Ctx =
     g = db.get(AccessGroup, group_id)
     if g is None or g.site_id != site.id:
         raise not_found()
-    g.name, g.rules, g.for_visitors = body.name, _check_rules(db, site, body.rules), body.for_visitors
+    g.name, g.rules, g.for_visitors, g.installer_test = body.name, _check_rules(db, site, body.rules), body.for_visitors, body.installer_test
     log(db, ctx, "group.change", site_id=site.id, target_type="group", target_id=g.id, name=g.name)
     db.commit()
     return group_view(g)

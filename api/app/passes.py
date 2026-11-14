@@ -56,7 +56,8 @@ def _holder(h: Cardholder, group: str, creds: List[Credential]) -> Dict[str, Any
 
 
 def republish(db: Session, site: Site, by: uuid.UUID, now: datetime) -> List[Dict[str, Any]]:
-    """The site as last published, with today's passes; stored for each controller whose settings changed. Raises PassError."""
+    """The site as last published, with today's passes and today's commissioned doors; stored for each controller whose settings changed.
+    Used by passes and by commissioning (signing or voiding a record). Raises PassError."""
     snap = db.get(SitePublication, site.id)
     if snap is None:
         raise PassError("not_published", "This site has never been published: an admin publishes it once, then passes can be issued", 409)
@@ -73,6 +74,12 @@ def republish(db: Session, site: Site, by: uuid.UUID, now: datetime) -> List[Dic
     for c in db.execute(select(Credential).where(Credential.cardholder_id.in_(live_ids))).scalars():
         creds.setdefault(c.cardholder_id, []).append(c)
     doc["cardholders"] = keep + [_holder(holders[p.cardholder_id], str(p.group_id), creds.get(p.cardholder_id, [])) for p in live]
+    # Which doors are in service is the present, not a draft: a door signed off since the last publish gets its real settings now (decision 27).
+    from app.models import Door
+    from app.sitedoc import in_service
+    published_doors = {d["id"] for d in doc.get("doors", [])}
+    doc["commissioned_doors"] = [d for d in in_service(db, db.execute(select(Door).where(Door.site_id == site.id)).scalars().all())
+                                 if d in published_doors]
     try:
         return publishing.store(db, site, SiteDocument.model_validate(doc), by)
     except publishing.PublishError as e:
@@ -168,6 +175,5 @@ def secret_values(db: Session, p: VisitorPass) -> Dict[str, Optional[str]]:
     out: Dict[str, Optional[str]] = {"pin": None, "card_number": None, "qr": None}
     for c in db.execute(select(Credential).where(Credential.cardholder_id == p.cardholder_id)).scalars():
         out["pin" if c.kind == "pin" else "card_number"] = crypto.unseal(c.value_sealed)
-    if out["card_number"]:
-        out["qr"] = qr_data_uri(out["card_number"])
+    out["qr"] = qr_data_uri(out["card_number"]) if out["card_number"] else None      # every pass has a card; no QR rather than an error
     return out

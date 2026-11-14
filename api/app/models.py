@@ -232,6 +232,7 @@ class AccessGroup(Base):
     name: Mapped[str] = mapped_column(String(64))
     rules: Mapped[List[Dict[str, Any]]] = mapped_column(JSONB)          # [{"doors": [door id], "schedule_id": id or null}]
     for_visitors: Mapped[bool] = mapped_column(Boolean, default=False)  # visitors' passes may use it (an admin's choice)
+    installer_test: Mapped[bool] = mapped_column(Boolean, default=False)  # the installer's test setup: works on doors not yet commissioned
 
 
 class Cardholder(Base):

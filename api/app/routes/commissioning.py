@@ -179,6 +179,21 @@ def _newest(db: Session, door_ids: List[uuid.UUID]) -> Dict[uuid.UUID, Commissio
     return out
 
 
+def _flow(db: Session, ctx: Ctx, site: Site) -> Dict[str, Any]:
+    """Decision 27: signing (or voiding) a record changes what the door's controller gets, at once, from the site as last published (never an
+    admin's drafts). A site never published has nothing to update yet; its first publish carries it."""
+    from app import passes
+    try:
+        passes.republish(db, site, ctx.who.id, utcnow())
+    except passes.PassError as e:
+        if e.code == "not_published":
+            return {"settings": "not_published"}
+        db.rollback()
+        return {"settings": "not_updated", "settings_problem": e.detail}
+    db.commit()
+    return {"settings": "updated"}
+
+
 def door_status(d: Door, c: Optional[Commissioning]) -> Dict[str, Any]:
     s = rules.status(c.controller_door if c else None, bool(c and c.voided_at), d.controller_door)
     return {"door_id": str(d.id), "door": d.name, "in_service": s.in_service, "why": s.why, "record": record_view(c) if c else None}
@@ -237,7 +252,7 @@ def sign(site_id: uuid.UUID, door_id: uuid.UUID, body: CommissioningIn, ctx: Ctx
     log(db, ctx, "door.commission", site_id=site.id, target_type="door", target_id=d.id, record=str(c.id), installer=c.installer,
         license=c.license_text)
     db.commit()
-    return door_status(d, c)
+    return {**door_status(d, c), **_flow(db, ctx, site)}
 
 
 @router.post("/sites/{site_id}/doors/{door_id}/commissioning/void")
@@ -254,4 +269,4 @@ def void(site_id: uuid.UUID, door_id: uuid.UUID, body: VoidIn, ctx: Ctx = Depend
     c.voided_at, c.voided_by_label, c.void_reason = utcnow(), _signer(ctx.who.label, ctx.source)[:200], reason
     log(db, ctx, "door.commission_void", site_id=site.id, target_type="door", target_id=d.id, record=str(c.id), reason=reason)
     db.commit()
-    return door_status(d, c)
+    return {**door_status(d, c), **_flow(db, ctx, site)}

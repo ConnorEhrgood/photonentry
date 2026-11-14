@@ -19,6 +19,9 @@ the door is commissioned).
 
 Each controller gets only what concerns its own doors: the groups with a rule on one of them, the cardholders in those groups, the schedules
 those rules and doors use. A cardholder with no access there is not sent at all.
+
+**A door not yet commissioned is held back** (decision 27; `commissioned_doors`): it gets only the installer test setup (rules of groups marked
+`installer_test`, with their schedules) and no unlock schedule. The customer's real access reaches it once its record is signed.
 """
 from __future__ import annotations
 
@@ -80,6 +83,7 @@ def compile_controller(doc: SiteDocument, controller_id: str, inventory: Optiona
     if problems:
         raise CompileError(problems)
     door_points = {d.id: access_points[d.controller_door] for d in doors}
+    held = set() if doc.commissioned_doors is None else {d.id for d in doors} - set(doc.commissioned_doors)
 
     schedules_used: set = set()
     profiles: List[Dict[str, Any]] = []
@@ -88,6 +92,8 @@ def compile_controller(doc: SiteDocument, controller_id: str, inventory: Optiona
         for rule in g.rules:
             schedule = f"{PREFIX}s-{rule.schedule_id}" if rule.schedule_id else ALWAYS
             for door_id in rule.doors:
+                if door_id in held and not g.installer_test:
+                    continue                         # not commissioned: the customer's real access waits for the sign-off
                 for ap in door_points.get(door_id, []):
                     policies.append({"AccessPoint": ap, "AuthorizationProfile": [], "Attribute": [], "Schedule": [schedule]})
                     if rule.schedule_id and door_id in door_points:
@@ -113,7 +119,7 @@ def compile_controller(doc: SiteDocument, controller_id: str, inventory: Optiona
     door_schedules: List[Dict[str, Any]] = []
     for d in sorted(doors, key=lambda d: d.controller_door):
         link = ""
-        if d.unlock_schedule_id:
+        if d.unlock_schedule_id and d.id not in held:
             link = f"{PREFIX}d-{d.id}"
             schedules_used.add(d.unlock_schedule_id)
             # One DoorSchedule with no PriorityLevel (Axis: then it must be the only one). The first active schedule's action applies, so

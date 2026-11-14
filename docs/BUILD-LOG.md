@@ -461,3 +461,16 @@ v1 stood up a development PhotonVox on LXC 800 (Connor's go; not production) wit
 `scripts/vox-dev-check.py` (the client, read-only: stations valid against the contract with the outbound proxy, the SIP account into the Akuvox
 file, a real call answered after `#` named, 400/404/401 and another organization refused) and `api/tests/db/test_vox_dev.py` (the whole path
 through PhotonEntry's API and worker, against PhotonVox; skipped in ordinary runs). The token stays out of git.
+
+## 2026-11-14: Connor's decisions 25-27 (part 1): the QR code, and uncommissioned doors held back
+
+- **QR code on visitor passes** (decision 26; segno 1.6.1, pinned): the pass's card number as a QR code on the visitor's page and in the front
+  desk's dialog, only while the pass is good. Whether each Akuvox model sends a QR's content as the card is still a bench item.
+- **Doors held back** (decision 27): the compiler gives a door not in service only installer-test groups' access (a new "Installer test group"
+  flag, migration 0012) and no unlock schedule; `commissioned_doors` in the site document says which are in service. Signing or voiding a record
+  republishes from the last published site document with today's passes and in-service doors, so the real settings reach or leave the door by
+  themselves, without an admin's drafts (a site never published says so; a site whose settings no longer compile says so, and the record stands).
+  The Doors page says which doors get only the test setup and why, each badge says "test setup only", an unlock schedule says "once
+  commissioned", and the note after signing says whether the settings went out.
+- **The end-to-end test** now shows it with the real C entry-link: published before sign-off, Bob's card is not on the controller and is refused;
+  signed off through the API, it arrives by itself and opens the door.
