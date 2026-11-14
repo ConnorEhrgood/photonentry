@@ -2,8 +2,9 @@ from app import roles
 from app.roles import CAPABILITIES, ROLES
 
 
-def test_ranks_rise_from_viewer_to_owner():
-    assert [r.key for r in sorted(ROLES.values(), key=lambda r: r.rank)] == ["viewer", "operator", "admin", "owner"]
+def test_ranks_rise_from_door_user_to_owner():
+    assert [r.key for r in sorted(ROLES.values(), key=lambda r: r.rank)] == ["door_user", "viewer", "operator", "admin", "owner"]
+    assert min(r.rank for r in ROLES.values()) == 1                                    # the directory refuses a rank of 0
 
 
 def test_each_role_includes_everything_below_it():
@@ -14,12 +15,15 @@ def test_each_role_includes_everything_below_it():
 
 def test_the_catalog_is_what_the_directory_is_sent():
     cat = roles.catalog()["roles"]
-    assert [r["key"] for r in cat] == ["viewer", "operator", "admin", "owner"]
+    assert [r["key"] for r in cat] == ["door_user", "viewer", "operator", "admin", "owner"]
+    assert cat[0]["capabilities"] == ["entry.unlock.own"] and cat[0]["sensitive_capabilities"] == [] and cat[0]["site_limitable"] is True
+    assert 0 < len(cat[0]["description"]) <= 200 and "description" not in cat[1]                        # photonid roles.schema.json (ee0637c)
+    assert all("entry.unlock.own" in r["capabilities"] for r in cat)                  # promoting a door user never takes the app's unlock away
     owner = cat[-1]
     assert owner["site_limitable"] is False and set(owner["capabilities"]) == set(CAPABILITIES)
     assert owner["sensitive_capabilities"] == ["entry.credential.issue", "entry.door.unlock", "entry.emergency.open", "entry.lockdown",
                                                "entry.visitors.manage"]
-    assert cat[1]["sensitive_capabilities"] == ["entry.door.unlock", "entry.lockdown", "entry.visitors.manage"]
+    assert cat[2]["sensitive_capabilities"] == ["entry.door.unlock", "entry.lockdown", "entry.visitors.manage"]
 
 
 def test_only_the_owner_can_open_every_door_at_once_or_read_the_audit_trail():

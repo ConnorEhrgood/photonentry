@@ -197,6 +197,25 @@ describe('the daily pages', () => {
     expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/credentials'))?.body).toEqual({ kind: 'pin', pin: '4821' })
   })
 
+  it('people: link a cardholder to their PhotonID account, so the app opens their doors', async () => {
+    const user = userEvent.setup()
+    const dana = { id: 'h1', name: 'Dana Door', ref: null, email: 'dana@example.com', person_id: null, suspended: false, valid_from: null, valid_to: null, groups: ['g1'] }
+    const { calls } = app('/people', {
+      [`GET ${T}/cardholders`]: [dana], [`GET ${T}/sites/s1/groups`]: [{ id: 'g1', name: 'Staff', rules: [] }],
+      [`GET ${T}/members`]: [{ person_id: 'p9', name: 'Dana Door', email: 'dana@example.com', role: 'door_user', scope: { all: true }, source: 'direct', pending: false },
+        { person_id: 'p8', name: 'Pending Pat', email: 'pat@example.com', role: 'door_user', scope: { all: true }, source: 'direct', pending: true }],
+      [`PATCH ${T}/cardholders/h1`]: (b: unknown) => ({ ...dana, ...(b as object) }), [`PUT ${T}/cardholders/h1/groups`]: dana,
+      [`GET ${T}/cardholders/h1/credentials`]: [],
+    })
+    await user.click(await screen.findByRole('button', { name: 'Dana Door' }))
+    const account = await screen.findByLabelText('PhotonID account (opens their doors from the app)')
+    expect(screen.getByText(/invite them as a Door user/)).toBeInTheDocument()
+    expect(within(account).queryByRole('option', { name: /Pending Pat/ })).not.toBeInTheDocument()       // not signed in yet: nothing to link
+    await user.selectOptions(account, 'p9')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(calls.find((c) => c.method === 'PATCH')?.body).toMatchObject({ person_id: 'p9' }))
+  })
+
   it('access: groups, schedules, holidays, and publishing', async () => {
     const user = userEvent.setup()
     app('/access', {

@@ -109,7 +109,12 @@ const PASSES = [
     state: 'upcoming', host: 'Fay Front', created_at: now, emailed: false, link: 'https://entry.photonind.com/pass/Ab3d', revoked_by: null },
   { id: 'p3', visitor_name: 'Old Guest', visitor_email: null, group_id: 'g9', group: 'Visitors (lobby)', valid_from: hoursFrom(-50), valid_to: hoursFrom(-42),
     state: 'over', host: 'Ada Owner', created_at: now, emailed: false, link: 'https://entry.photonind.com/pass/Zz9y', revoked_by: null }]
+const MY_DOORS = { linked: true, doors: [
+  { door_id: 'd1', door: 'Main entrance', site_id: 's1', site: 'Main office', can_open: true, why: '', why_text: '' },
+  { door_id: 'd2', door: 'Staff entrance', site_id: 's1', site: 'Main office', can_open: true, why: '', why_text: '' },
+  { door_id: 'd3', door: 'IT closet', site_id: 's1', site: 'Main office', can_open: false, why: 'outside_schedule', why_text: 'Not at this time' }] }
 const answers = (who) => ({
+  '/tenants/t1/my/doors': [200, MY_DOORS],
   '/tenants/t1/sites/s1/passes': [200, PASSES], '/tenants/t1/sites/s1/visitor-groups': [200, [{ id: 'g9', name: 'Visitors (lobby)' }]],
   '/passes/v1/Xq7m': [200, { visitor_name: 'Vera Visitor', site: 'Main office', address: '1 Mill Road, Pittsburgh PA 15212', timezone: 'America/New_York',
     host: 'Fay Front', valid_from: hoursFrom(-1), valid_to: hoursFrom(7), state: 'active', pin: '482913', card_number: '2914587', qr: 'data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27200%27%20height%3D%27200%27%20class%3D%27segno%27%3E%3Cg%20transform%3D%27scale%288%29%27%3E%3Cpath%20fill%3D%27%23fff%27%20d%3D%27M0%200h25v25h-25z%27%2F%3E%3Cpath%20class%3D%27qrline%27%20stroke%3D%27%23000%27%20d%3D%27M2%202.5h7m2%200h2m3%200h7m-21%201h1m5%200h1m2%200h3m2%200h1m5%200h1m-21%201h1m1%200h3m1%200h1m3%200h2m2%200h1m1%200h3m1%200h1m-21%201h1m1%200h3m1%200h1m3%200h1m3%200h1m1%200h3m1%200h1m-21%201h1m1%200h3m1%200h1m1%200h3m1%200h1m1%200h1m1%200h3m1%200h1m-21%201h1m5%200h1m3%200h2m2%200h1m5%200h1m-21%201h7m1%200h1m1%200h1m1%200h1m1%200h7m-13%201h2m1%200h2m-11%201h2m2%200h5m1%200h3m1%200h1m-16%201h1m2%200h1m3%200h1m1%200h1m2%200h1m1%200h1m1%200h4m-21%201h4m1%200h2m1%200h1m1%200h3m1%200h3m1%200h1m1%200h1m-21%201h1m2%200h1m1%200h1m1%200h2m1%200h5m4%200h2m-20%201h2m1%200h4m1%200h1m2%200h1m3%200h1m-9%201h2m4%200h2m1%200h4m-21%201h7m1%200h1m5%200h1m1%200h2m2%200h1m-21%201h1m5%200h1m2%200h1m1%200h3m3%200h1m1%200h1m-20%201h1m1%200h3m1%200h1m2%200h3m2%200h1m2%200h1m2%200h1m-21%201h1m1%200h3m1%200h1m1%200h2m1%200h1m4%200h1m2%200h1m-20%201h1m1%200h3m1%200h1m1%200h1m3%200h3m1%200h1m1%200h1m-19%201h1m5%200h1m2%200h1m6%200h2m1%200h2m-21%201h7m2%200h7m3%200h1%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E' }],
@@ -118,7 +123,7 @@ const answers = (who) => ({
   '/tenants/t1/lockdowns/active': [200, who === 'lockdown' ? [LOCKDOWN] : []],
   '/tenants/t1/sites/s1/lockdowns': [200, who === 'lockdown' ? [LOCKDOWN] : []],
   '/v1/me/apps': [200, APPS],
-  '/me': [200, who === 'tech' ? me([tech(), tech({ id: 't2', name: 'Birch Co', status: 'suspended' }), tech({ id: 't3', name: 'Elm Street School' })], { name: 'Tom Tech' }) : me([tenant()])],
+  '/me': [200, who === 'door' ? me([tenant({ role: 'door_user', capabilities: ['entry.unlock.own'] })], { name: 'Dana Door' }) : who === 'tech' ? me([tech(), tech({ id: 't2', name: 'Birch Co', status: 'suspended' }), tech({ id: 't3', name: 'Elm Street School' })], { name: 'Tom Tech' }) : me([tenant()])],
   '/templates': [200, CATALOG],
   '/tenants/t1/sites': [200, SITES], '/tenants/t2/sites': [200, SITES], '/tenants/t3/sites': [200, SITES],
   '/tenants/t1/controllers': [200, CONTROLLERS], '/tenants/t2/controllers': [200, []], '/tenants/t3/controllers': [200, [{ ...CONTROLLERS[0], last_seen: null }]],
@@ -146,6 +151,7 @@ const PAGES = [
   ['lockdown-start', '/doors', 'owner', [{ button: 'Lock down' }]], ['lockdown-active', '/doors', 'lockdown'],
   ['commission-form', '/doors', 'owner', [{ button: 'Staff entrance: commission' }]],
   ['commission-record', '/doors', 'owner', [{ button: 'Main entrance: commissioning record' }]], ['licenses', '/settings/licenses', 'owner'],
+  ['my-doors', '/', 'door'],
   ['visitors', '/visitors', 'owner'], ['visitor-pass-form', '/visitors', 'owner', [{ button: 'Make a pass' }]], ['visitor-own-pass', '/pass/Xq7m', 'owner'],
   ['overview', '/overview', 'owner'], ['doors', '/doors', 'owner'], ['people', '/people', 'owner'], ['person', '/people', 'owner', [{ button: 'Alice Smith' }]],
   ['access', '/access', 'owner'], ['events', '/events', 'owner'], ['customers-tech', '/', 'tech'], ['team', '/settings/team', 'owner'], ['guard', '/settings/guard', 'owner'], ['console', '/settings/console', 'owner'], ['vox', '/settings/vox', 'owner'],

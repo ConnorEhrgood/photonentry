@@ -73,7 +73,7 @@ describe('people, changed', () => {
     await user.click(within(dialog).getByLabelText(/Suspended/))
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(calls.find((c) => c.method === 'PATCH' && c.path === `${T}/cardholders/h1`)?.body).toEqual({ name: 'Ann', ref: 'E-1', email: '', suspended: true })
+    expect(calls.find((c) => c.method === 'PATCH' && c.path === `${T}/cardholders/h1`)?.body).toEqual({ name: 'Ann', ref: 'E-1', email: '', suspended: true, person_id: null })
   })
 
   it('a card number already held is refused with the reason', async () => {

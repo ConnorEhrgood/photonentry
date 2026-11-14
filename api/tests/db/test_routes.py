@@ -68,7 +68,7 @@ def test_me_lists_roles_and_capabilities(client, world):
     assert {t["name"]: t["role"] for t in me["tenants"]} == {"Birch Co": "admin", "Cedar Works": "admin"}
     assert all(t["source"] == "partner" for t in me["tenants"])
     viewer = client.get("/me", headers=auth("a-viewer")).json()["tenants"][0]
-    assert viewer["capabilities"] == ["entry.events.view", "entry.view"]
+    assert viewer["capabilities"] == ["entry.events.view", "entry.unlock.own", "entry.view"]
     assert client.get("/me", headers=auth("staff")).json()["is_platform_admin"] is True
 
 

@@ -8,6 +8,7 @@ import { AccessPage } from './pages/Access'
 import { AuditPage } from './pages/Audit'
 import { LicensesPage } from './pages/Commissioning'
 import { PassPageRoute, VisitorsPage } from './pages/Visitors'
+import { MyDoorsPage } from './pages/MyDoors'
 import { CustomersPage } from './pages/Customers'
 import { DoorsPage, OverviewPage } from './pages/Doors'
 import { EventsPage } from './pages/Events'
@@ -82,12 +83,21 @@ function Needs({ cap }: { cap: string }) {
   return can(cap) ? <Outlet /> : <NotForYou />
 }
 
+/** An organization's home: the overview for anyone who manages or watches doors; their own doors for a door user. */
+function OrgHome() {
+  const { can } = useTenant()
+  if (can('entry.view')) return <OverviewPage />
+  return can('entry.unlock.own') ? <Navigate to="my-doors" replace /> : <NotForYou />
+}
+
 /** An organization's pages (and a site's: the same, on that site). Its home is the overview. */
 function orgPages() {
   return (
     <>
+      {/* An organization's home: the overview, or for a door user (who sees nothing else) their own doors. */}
+      <Route index element={<OrgHome />} />
+      <Route element={<Needs cap="entry.unlock.own" />}><Route path="my-doors" element={<MyDoorsPage />} /></Route>
       <Route element={<Needs cap="entry.view" />}>
-        <Route index element={<OverviewPage />} />
         <Route path="overview" element={<OverviewPage />} />
         <Route path="doors" element={<DoorsPage />} />
         <Route path="access" element={<AccessPage />} />

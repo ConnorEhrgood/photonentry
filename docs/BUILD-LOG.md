@@ -474,3 +474,27 @@ through PhotonEntry's API and worker, against PhotonVox; skipped in ordinary run
   commissioned", and the note after signing says whether the settings went out.
 - **The end-to-end test** now shows it with the real C entry-link: published before sign-off, Bob's card is not on the controller and is refused;
   signed off through the API, it arrives by itself and opens the door.
+
+## 2026-11-14: Connor's decisions 25-27 (part 2): phone unlock with PhotonID
+
+**Agreed with id1:** a fifth role, `door_user` ("Door user (opens doors with the app)", rank 1: the directory refuses 0; the others moved up
+one), site-limitable, one capability `entry.unlock.own`, which every role also has (one role per person per product: promoting a door user must
+not take it away). Linking by email only to an active person with an Entry role in the same organization, never when two cardholders share the
+address. A role description, bulk invites and a prefilled invite link are id1's to add later. Going live with the directory waits for GATE P.
+
+**Built** (`app/unlock.py`, `app/routes/unlock.py`, both CRITICAL; migration 0013):
+- **The role** in the catalog (published to the directory by the worker), the `access` check widened, and a door user may read their own
+  organization's row and nothing else (row-level security).
+- **Which doors open now:** the person's own cardholders, not suspended and valid; a rule's schedule active now in the site's time zone (holidays
+  off when the schedule says so; "at all times"); the door commissioned unless the group is the installer's test group; not locked down; its
+  controller in service. One group that opens a door is enough. The system reads these, scoped to the person's own cardholders.
+- **Opening:** checked again, an `access` command written by the system in the person's name, audited (`door.open_own`), 10 a minute per
+  person; the person reads only their own commands' outcome.
+- **Linking:** an admin picks the person (only someone with Entry access in the organization, linked to one cardholder at most), or it happens by
+  email the first time they open the app. **Fixed on the way:** the sites list asked only for membership; it now needs `entry.view` (a door user
+  could list the sites).
+- **Web:** "My doors" (thumb-sized, the reason a door is closed, the outcome after Open), a door user's home and only page; the account picker on a
+  person (sent only with the picker on screen, so a link made by email is never undone); the manifest for the home screen.
+
+**Verified:** the unlock modules at 100% branch coverage (a door user end to end, what opens when and why not, lockdown, commissioning,
+suspension, ambiguous emails, the link rules, the limit, every role), and the web tests; screenshot of My doors at the three sizes, looked at.

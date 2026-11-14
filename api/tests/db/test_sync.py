@@ -289,7 +289,7 @@ def test_resolve_when_the_pull_afterwards_fails_raises_too(fake, db):
 def test_the_role_catalog_is_published_once_and_again_only_when_it_changes(fake, db, monkeypatch):
     with SystemSession() as s:
         assert sync.publish_roles(s, fake.factory()) is True
-    assert [r["key"] for r in fake.ref.published] == ["viewer", "operator", "admin", "owner"]
+    assert [r["key"] for r in fake.ref.published] == ["door_user", "viewer", "operator", "admin", "owner"]
     with SystemSession() as s:
         assert sync.publish_roles(s, fake.factory()) is False
     monkeypatch.setitem(roles.CAPABILITIES, "entry.door.unlock", False)         # a capability stops being sensitive: the published catalog differs

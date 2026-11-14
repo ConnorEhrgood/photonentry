@@ -34,7 +34,7 @@ def get_tenant(ctx: Ctx = Depends(tenant_ctx), db: Session = Depends(get_db)) ->
 
 
 @router.get("/sites")
-def list_sites(ctx: Ctx = Depends(tenant_ctx), db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+def list_sites(ctx: Ctx = Depends(require("entry.view")), db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     return [{"id": str(s.id), "slug": s.slug, "name": s.name, "address": s.address, "timezone": s.timezone} for s in visible_sites(db, ctx)]
 
 

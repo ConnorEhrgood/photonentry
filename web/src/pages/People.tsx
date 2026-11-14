@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import type { Cardholder, Credential, Group, Site } from '../api/types'
+import type { Cardholder, Credential, Group, Site, Member } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import { DIRECTORY_URL } from '../components/Layout'
 import { useTenant } from '../auth/TenantContext'
 import { useSites } from '../components/sites'
 import { ConfirmButton, ErrorText, Loading, Modal, PageHeader, StatusBadge } from '../components/ui'
@@ -78,13 +79,17 @@ function PersonDialog({ person, groups, multi, onClose, onSaved }: {
   const [ref, setRef] = useState(person?.ref ?? '')
   const [email, setEmail] = useState(person?.email ?? '')
   const [suspended, setSuspended] = useState(person?.suspended ?? false)
+  const [personId, setPersonId] = useState(person?.person_id ?? '')
+  // The organization's PhotonID people with PhotonEntry access: one of them may be this cardholder, and open its doors from the app (decision 25).
+  const members = useLoad(() => (can('entry.members.view') ? api.get<Member[]>(`/tenants/${t}/members`) : Promise.resolve([])), [api, t])
   const [chosen, setChosen] = useState<string[]>(person?.groups ?? [])
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState<Cardholder | null>(person)
   const save = async () => {
     setError(null)
     try {
-      const body = { name: name.trim(), ref: ref.trim() || null, email: email.trim(), suspended }
+      // The account is sent only with its picker on screen: otherwise a link made by email must not be undone by a save.
+      const body = { name: name.trim(), ref: ref.trim() || null, email: email.trim(), suspended, ...(can('entry.members.view') ? { person_id: personId || null } : {}) }
       const p = saved ? await api.patch<Cardholder>(`/tenants/${t}/cardholders/${saved.id}`, body) : await api.post<Cardholder>(`/tenants/${t}/cardholders`, body)
       const withGroups = await api.put<Cardholder>(`/tenants/${t}/cardholders/${p.id}/groups`, { group_ids: chosen })
       setSaved(withGroups)
@@ -101,6 +106,15 @@ function PersonDialog({ person, groups, multi, onClose, onSaved }: {
         <div className="ph-field"><label htmlFor="p-name">Name</label><input id="p-name" className="ph-input" value={name} onChange={(e) => setName(e.target.value)} /></div>
         <div className="ph-field"><label htmlFor="p-ref">Reference</label><input id="p-ref" className="ph-input" value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Employee or unit number" /></div>
         <div className="ph-field"><label htmlFor="p-email">Email</label><input id="p-email" className="ph-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+        {can('entry.members.view') && (
+          <div className="ph-field"><label htmlFor="p-account">PhotonID account (opens their doors from the app)</label>
+            <select id="p-account" className="ph-input" value={personId} onChange={(e) => setPersonId(e.target.value)}>
+              <option value="">None</option>
+              {(members.data ?? []).filter((m) => !m.pending).map((m) => <option key={m.person_id} value={m.person_id}>{m.name || m.email}{m.email && m.name ? ` (${m.email})` : ''}</option>)}
+            </select>
+            {!personId && <span className="ph-hint">Matched by email when they first open the app. To give them the app, invite them as a Door user in <a href={DIRECTORY_URL} target="_blank" rel="noreferrer">Manage organization</a>.</span>}
+          </div>
+        )}
       </div>
       <fieldset className="pe-fieldset">
         <legend>Access groups</legend>

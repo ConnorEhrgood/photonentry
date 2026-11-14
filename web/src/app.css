@@ -74,3 +74,11 @@
 .pe-pass-pin { font-family: var(--font-mono, monospace); font-size: 2.5rem; font-weight: 700; letter-spacing: 0.25em; margin: 0.25rem 0 1rem; }
 .pe-qr { display: block; width: min(16rem, 70vw); height: auto; margin: 0.25rem auto 0.75rem; border-radius: var(--radius); background: #fff; image-rendering: pixelated; }
 .pe-qr-sm { width: 9rem; margin: 0; }
+
+/* My doors (pages/MyDoors.tsx): thumb-sized, for phones */
+.pe-mydoors { display: grid; gap: 0.75rem; }
+.pe-mydoor { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.pe-mydoor strong { font-size: 1.1rem; }
+.pe-mydoor p { margin: 0.25rem 0 0; }
+.pe-open { min-width: 6.5rem; min-height: 3rem; font-size: 1.05rem; }
+.pe-mydoors-hint { margin-top: 1.5rem; }

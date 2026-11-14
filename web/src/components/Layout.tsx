@@ -37,6 +37,7 @@ export function Layout() {
     { to: path('/access'), label: 'Access', icon: 'access', cap: 'entry.view' },
     { to: path('/events'), label: 'Events', icon: 'events', cap: 'entry.events.view' },
     { to: path('/visitors'), label: 'Visitors', icon: 'bookings', cap: 'entry.visitors.manage' },
+    { to: path('/my-doors'), label: 'My doors', icon: 'claim', cap: 'entry.unlock.own' },
   ]
   const groups: NavGroup[] = [{ items: items.filter((i) => !i.cap || can(i.cap)).map(({ cap: _cap, ...i }) => i) }]
   const footer: NavItem[] = settingsTabs(can).length > 0 ? [{ to: path('/settings'), label: 'Settings', icon: 'settings' }] : []

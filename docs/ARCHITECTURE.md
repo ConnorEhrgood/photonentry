@@ -602,7 +602,13 @@ Console offers **no door actions**: an automation must never open a door.
 
 ### 10.2 For the end user
 
-- **Phone unlock (R1):** a mobile web page that can be installed on the home screen.
+- **Phone unlock (R1):** a mobile web page that can be installed on the home screen. **Built (2026-11-14, decision 25):** a "Door user (opens
+  doors with the app)" role (rank 1; every role has `entry.unlock.own`, agreed with id1) so the directory sends PhotonID people to PhotonEntry;
+  each is linked to their own cardholder (by an admin, or by email when exactly one cardholder matches); "My doors" lists the doors that
+  record opens now (schedule in the site's time zone, holidays, validity, suspension, commissioning, lockdown, the controller in service) and
+  opens one through the link, written by the system in the person's name, audited, at most 10 a minute. A door user sees nothing else. The web
+  app has a manifest for the home screen. **Later:** pairing links for people without an account; a prefilled invite link and bulk invites in
+  the account app (id1).
   - Sign in with PhotonID or pair by QR, then **Unlock** on the doors you may open.
   - The path is cloud → `entry-link`, 1–3 s. The phone and the site must both be online.
 - **The PhotonVox app (R2):** door calls with video and Unlock, and the same door list.

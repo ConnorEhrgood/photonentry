@@ -45,6 +45,8 @@ export const OWNER: TenantAccess = {
 }
 export const VIEWER: TenantAccess = { ...OWNER, role: 'viewer', capabilities: VIEWER_CAPS }
 export const OPERATOR: TenantAccess = { ...OWNER, role: 'operator', capabilities: OPERATOR_CAPS }
+/** A door user (decision 25): opens their own doors from the app, and nothing else. */
+export const DOOR_USER: TenantAccess = { ...OWNER, role: 'door_user' as TenantAccess['role'], capabilities: ['entry.unlock.own'] }
 /** A partner technician: admin of two customers through the partner grant. */
 export const TECH_A: TenantAccess = { ...OWNER, role: 'admin', source: 'partner', partner_id: 'pa', capabilities: ADMIN_CAPS }
 export const TECH_B: TenantAccess = { ...TECH_A, id: 't2', name: 'Birch Co' }

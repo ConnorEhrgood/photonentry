@@ -24,7 +24,7 @@ from app import crypto
 from app.db import get_db
 from app.deps import Ctx, require, tenant_ctx
 from app.document import Card
-from app.models import AccessGroup, Cardholder, CardholderGroup, Credential
+from app.models import Access, AccessGroup, Cardholder, CardholderGroup, Credential
 from app.routes.common import log, not_found, problem, site_of
 
 router = APIRouter(prefix="/tenants/{tenant_id}")
@@ -102,6 +102,19 @@ def _holder(db: Session, ctx: Ctx, holder_id: uuid.UUID) -> Cardholder:
     return h
 
 
+def _check_person(db: Session, ctx: Ctx, person_id: Optional[uuid.UUID], holder_id: Optional[uuid.UUID] = None) -> None:
+    """A cardholder is linked only to a person who has PhotonEntry access in this organization (photonid: an active member with an Entry role),
+    and a person to one cardholder of the organization at most (their app opens that record's doors)."""
+    if person_id is None:
+        return
+    if db.execute(select(Access).where(Access.tenant_id == ctx.tenant_id, Access.person_id == person_id)).scalar_one_or_none() is None:
+        raise problem({"code": "not_a_member", "detail": "That person has no PhotonEntry access in this organization"})
+    other = db.execute(select(Cardholder).where(Cardholder.tenant_id == ctx.tenant_id, Cardholder.person_id == person_id,
+                                                Cardholder.id != (holder_id or uuid.uuid4()))).scalars().first()
+    if other is not None:
+        raise problem({"code": "person_linked", "detail": f"That person is already linked to {other.name}"}, 409)
+
+
 def _check_validity(valid_from: Optional[datetime], valid_to: Optional[datetime]) -> None:
     for t in (valid_from, valid_to):
         if t is not None and t.tzinfo is None:
@@ -120,6 +133,7 @@ def list_cardholders(ctx: Ctx = Depends(require("entry.cardholders.view")), db: 
 @router.post("/cardholders", status_code=201)
 def add_cardholder(body: CardholderIn, ctx: Ctx = Depends(require("entry.cardholders.manage")), db: Session = Depends(get_db)) -> Dict[str, Any]:
     _check_validity(body.valid_from, body.valid_to)
+    _check_person(db, ctx, body.person_id)
     h = Cardholder(id=uuid.uuid4(), tenant_id=ctx.tenant_id, **body.model_dump())
     db.add(h)
     try:
@@ -142,6 +156,8 @@ def patch_cardholder(holder_id: uuid.UUID, body: CardholderPatch, ctx: Ctx = Dep
                      db: Session = Depends(get_db)) -> Dict[str, Any]:
     h = _holder(db, ctx, holder_id)
     changes = body.model_dump(exclude_unset=True)
+    if "person_id" in changes:
+        _check_person(db, ctx, changes["person_id"], h.id)
     for k, v in changes.items():
         setattr(h, k, v)
     _check_validity(h.valid_from, h.valid_to)

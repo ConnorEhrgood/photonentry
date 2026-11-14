@@ -34,6 +34,8 @@ CRITICAL = [
     "api/app/passes.py",                # giving a stranger a way in
     "api/app/routes/passes.py",
     "api/app/notify.py",                # who is told of a lockdown, once
+    "api/app/unlock.py",                # which doors a person may open from the app
+    "api/app/routes/unlock.py",
     "api/app/consolefeed.py",           # what a PhotonConsole feed sees: one organization, never people
 ]
 
