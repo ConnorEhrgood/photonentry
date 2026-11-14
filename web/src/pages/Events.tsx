@@ -34,7 +34,7 @@ export function EventsPage() {
                     <td className="pe-who" data-label="When">{new Date(e.occurred_at).toLocaleString()}</td>
                     <td data-label="What"><StatusBadge tone={d.tone}>{d.text}</StatusBadge></td>
                     <td data-label="Door">{e.door ?? <span className="ph-hint">Unknown door</span>}</td>
-                    <td data-label="Who">{e.cardholder ?? ''}</td>
+                    <td data-label="Who">{e.cardholder ?? (e.answered_by ? `Answered by ${e.answered_by}` : '')}</td>
                   </tr>
                 )
               })}

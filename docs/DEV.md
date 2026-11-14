@@ -65,6 +65,11 @@ the tests claim through the store (`store.claim`).
   The API needs `OIDC_WEB_CLIENT_ID` (our web client: development 399489273423724547) to tell them apart, and `ACCOUNT_ORIGIN` (default
   https://account.photonind.com) for this route's CORS.
 
+## PhotonVox (docs/VOX.md)
+
+`VOX_API_URL` (default https://api.vox.photonind.com) is where door stations and call records are read. PhotonVox's side is not built:
+`api/tests/db/test_vox.py` has a fake that follows `contract/vox/`, and is the reference until it is.
+
 ## Conventions
 
 - **Tokens on the controller:** PhotonEntry owns only objects whose token starts with `pe-`:

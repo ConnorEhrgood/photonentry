@@ -9,7 +9,7 @@ import { AuditPage } from './pages/Audit'
 import { CustomersPage } from './pages/Customers'
 import { DoorsPage, OverviewPage } from './pages/Doors'
 import { EventsPage } from './pages/Events'
-import { ConsoleSettingsPage, GuardSettingsPage } from './pages/Integrations'
+import { ConsoleSettingsPage, GuardSettingsPage, VoxSettingsPage } from './pages/Integrations'
 import { NotForYou, SettingsHub, SettingsIndex } from './pages/Hubs'
 import { PeoplePage } from './pages/People'
 import { SetupPage } from './pages/Setup'
@@ -99,6 +99,7 @@ function orgPages() {
         <Route element={<Needs cap="entry.config.manage" />}>
           <Route path="guard" element={<GuardSettingsPage />} />
           <Route path="console" element={<ConsoleSettingsPage />} />
+          <Route path="vox" element={<VoxSettingsPage />} />
         </Route>
         <Route element={<Needs cap="entry.audit.view" />}><Route path="audit" element={<AuditPage />} /></Route>
       </Route>

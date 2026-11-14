@@ -192,8 +192,15 @@ describe('the daily pages', () => {
       ev({ seq: 3, topic: 'AccessControl/AccessGranted/Credential', cardholder: 'Ann' }),
       ev({ seq: 2, topic: 'Door/State/DoorAlarm', state: 'DoorForcedOpen' }),
       ev({ seq: 1, topic: 'Door/State/DoorMode', state: 'Locked' }),
+      ev({ seq: 4, topic: 'PhotonEntry/Intercom/Unlock', label: 'Opened from the intercom', severity: 'info', answered_by: 'Ann Lee (101)' }),
+      ev({ seq: 5, topic: 'PhotonEntry/Intercom/Tamper', label: 'Intercom tampered with', severity: 'critical' }),
+      ev({ seq: 6, topic: 'PhotonEntry/Intercom/Refused', label: 'Intercom request refused: wrong key', severity: 'warning' }),
+      ev({ seq: 7, topic: 'PhotonEntry/Intercom/CallStarted', label: 'Intercom call', severity: 'info' }),
     ] })
-    expect(await screen.findByText('Access granted')).toBeInTheDocument()
+    expect(await screen.findByText('Opened from the intercom')).toBeInTheDocument()
+    expect(screen.getByText('Answered by Ann Lee (101)')).toBeInTheDocument()
+    expect(screen.getByText('Intercom tampered with')).toBeInTheDocument()
+    expect(screen.getByText('Access granted')).toBeInTheDocument()
     expect(screen.getByText('Ann')).toBeInTheDocument()
     expect(screen.getByText('Door forced open')).toBeInTheDocument()
     expect(screen.queryByText('Door locked')).not.toBeInTheDocument()

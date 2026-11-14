@@ -12,14 +12,15 @@ from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session
 
+from app import vox
 from app.db import get_db
 from app.events import normalize
 from app.deps import Ctx, require, tenant_ctx
 from app.link.pgstore import new_command, notify
-from app.models import AuditLog, Cardholder, Controller, Door, DoorEvent, LinkCommand, utcnow
+from app.models import AuditLog, CallMatch, Cardholder, Controller, Door, DoorEvent, LinkCommand, utcnow
 from app.routes.common import log, not_found, problem, site_of
 from app.routes.tenants import PARTNER_LABEL
 
@@ -112,6 +113,12 @@ def events(site_id: uuid.UUID, ctx: Ctx = Depends(tenant_ctx), db: Session = Dep
     names = {}
     if holder_ids and ctx.can("entry.cardholders.view", site.id):
         names = {h.id: h.name for h in db.execute(select(Cardholder).where(Cardholder.id.in_(holder_ids))).scalars()}
+    # Who answered the call a door was opened from (PhotonVox's call records, app/vox.py).
+    opened = [(e.controller_id, e.seq) for e in rows if e.topic == vox.UNLOCK]
+    matches = {}
+    if opened:
+        matches = {(m.controller_id, m.seq): m for m in db.execute(select(CallMatch).where(
+            tuple_(CallMatch.controller_id, CallMatch.seq).in_(opened))).scalars()}
     out = []
     for e in rows:
         door = doors.get((e.controller_id, e.source.get("DoorToken", ""))) or points.get((e.controller_id, e.source.get("AccessPointToken", "")))
@@ -127,7 +134,8 @@ def events(site_id: uuid.UUID, ctx: Ctx = Depends(tenant_ctx), db: Session = Dep
                     "kind": n.kind, "label": n.label, "severity": n.severity,
                     "received_at": e.received_at.isoformat(), "topic": e.topic, "door_id": str(door.id) if door else None,
                     "door": door.name if door else None, "cardholder_id": str(hid) if hid and hid in names else None,
-                    "cardholder": names.get(hid) if hid else None, "reason": e.data.get("Reason"), "state": e.data.get("State")})
+                    "cardholder": names.get(hid) if hid else None, "reason": e.data.get("Reason"), "state": e.data.get("State"),
+                    "answered_by": vox.answered(matches.get((e.controller_id, e.seq)))})
     return out
 
 

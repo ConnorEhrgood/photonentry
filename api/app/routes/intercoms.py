@@ -7,7 +7,8 @@ the intercom once (the provisioning address), and is audited.
 The intercom reaches entry-link on its door's controller: at the address the controller reports (`local_endpoint` in its health), unless the
 admin sets `relay_address` (a NAT, another port). A new intercom, or a changed relay password, reaches entry-link at the next publish.
 
-The SIP account is typed in for now; PhotonVox's door stations will fill it (ARCHITECTURE §9.2, docs/VOX.md).
+The SIP account is a PhotonVox door station's (`vox_station_id`, once the organization has connected PhotonVox: copied at once and every hour
+after, docs/VOX.md), or typed in.
 """
 from __future__ import annotations
 
@@ -21,16 +22,18 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import akuvox, crypto
+from app import akuvox, crypto, vox
 from app.config import settings
 from app.db import get_db
 from app.deps import Ctx, tenant_ctx
-from app.models import Controller, Door, Intercom, Site
+from app.models import Controller, Door, Intercom, Site, VoxLink, utcnow
 from app.routes.common import log, not_found, problem, site_of
+from app.routes.integrations import get_vox_fetch
 
 router = APIRouter(prefix="/tenants/{tenant_id}/sites/{site_id}")
 MANAGE = "entry.config.manage"
 _ADDRESS = r"^[A-Za-z0-9.-]{1,64}:\d{1,5}$"
+_STATION = r"^$|^[A-Za-z0-9_-]{1,64}$"
 
 
 def normal_mac(v: str) -> str:
@@ -51,6 +54,7 @@ class IntercomIn(BaseModel):
     sip_transport: str = Field(default="tls", pattern="^(udp|tcp|tls)$")
     sip_user: str = Field(default="", max_length=64)
     sip_password: str = Field(default="", max_length=128)
+    vox_station_id: str = Field(default="", pattern=_STATION)
 
     _mac = field_validator("mac")(normal_mac)
 
@@ -73,6 +77,7 @@ class IntercomPatch(BaseModel):
     sip_transport: Optional[str] = Field(default=None, pattern="^(udp|tcp|tls)$")
     sip_user: Optional[str] = Field(default=None, max_length=64)
     sip_password: Optional[str] = Field(default=None, max_length=128)
+    vox_station_id: Optional[str] = Field(default=None, pattern=_STATION)
 
     @field_validator("mac")
     @classmethod
@@ -105,7 +110,8 @@ def view(db: Session, i: Intercom, doors: Dict[uuid.UUID, Door]) -> Dict[str, An
     return {"id": str(i.id), "name": i.name, "door_id": str(i.door_id), "door": door.name if door else "", "model": i.model,
             "mac": ":".join(i.mac[n:n + 2] for n in range(0, 12, 2)), "relay_address": i.relay_address, "relay_target": relay_target(db, i),
             "sip_server": i.sip_server, "sip_port": i.sip_port, "sip_transport": i.sip_transport, "sip_user": i.sip_user,
-            "sip_password_set": bool(i.sip_password_sealed),
+            "sip_password_set": bool(i.sip_password_sealed), "vox_station_id": i.vox_station_id,
+            "sip_synced_at": i.sip_synced_at.isoformat() if i.sip_synced_at else None,
             "last_fetch_at": i.last_fetch_at.isoformat() if i.last_fetch_at else None, "last_fetch_ip": i.last_fetch_ip}
 
 
@@ -126,6 +132,20 @@ def _intercom(db: Session, site: Site, intercom_id: uuid.UUID) -> Intercom:
     return i
 
 
+def _station(db: Session, ctx: Ctx, i: Intercom, station_id: str, fetch: vox.Fetch) -> None:
+    """Give the intercom a PhotonVox door station: its SIP account is copied now (and refreshed hourly by the worker)."""
+    link = db.get(VoxLink, ctx.tenant_id)
+    if link is None:
+        raise problem({"code": "vox_not_connected", "detail": "Connect PhotonVox first (Settings > PhotonVox)"})
+    try:
+        found = {s.id: s for s in vox.stations(fetch, crypto.unseal(link.token_sealed), ctx.tenant_id)}
+    except vox.VoxError as e:
+        raise problem({"code": "vox_refused", "detail": str(e)}, 502)
+    if station_id not in found:
+        raise problem({"code": "no_such_station", "detail": "PhotonVox has no such door station in this organization"})
+    vox.copy_sip(i, found[station_id], utcnow())
+
+
 def _flush(db: Session) -> None:
     try:
         db.flush()
@@ -141,7 +161,8 @@ def list_intercoms(site_id: uuid.UUID, ctx: Ctx = Depends(tenant_ctx), db: Sessi
 
 
 @router.post("/intercoms", status_code=201)
-def add_intercom(site_id: uuid.UUID, body: IntercomIn, ctx: Ctx = Depends(tenant_ctx), db: Session = Depends(get_db)) -> Dict[str, Any]:
+def add_intercom(site_id: uuid.UUID, body: IntercomIn, ctx: Ctx = Depends(tenant_ctx), db: Session = Depends(get_db),
+                 fetch: vox.Fetch = Depends(get_vox_fetch)) -> Dict[str, Any]:
     site = site_of(db, ctx, site_id, MANAGE)
     doors = _doors(db, site)
     _door_at(doors, body.door_id)
@@ -152,6 +173,8 @@ def add_intercom(site_id: uuid.UUID, body: IntercomIn, ctx: Ctx = Depends(tenant
                  relay_secret_sealed=crypto.seal(akuvox.new_password()), admin_password_sealed=crypto.seal(akuvox.new_password()),
                  provision_token_sealed=crypto.seal(token),
                  provision_token_hash=akuvox.token_hash(token), created_by=ctx.who.id)
+    if body.vox_station_id:
+        _station(db, ctx, i, body.vox_station_id, fetch)
     db.add(i)
     _flush(db)
     log(db, ctx, "intercom.add", site_id=site.id, target_type="intercom", target_id=i.id, name=i.name, mac=i.mac, model=i.model)
@@ -161,7 +184,7 @@ def add_intercom(site_id: uuid.UUID, body: IntercomIn, ctx: Ctx = Depends(tenant
 
 @router.patch("/intercoms/{intercom_id}")
 def patch_intercom(site_id: uuid.UUID, intercom_id: uuid.UUID, body: IntercomPatch, ctx: Ctx = Depends(tenant_ctx),
-                   db: Session = Depends(get_db)) -> Dict[str, Any]:
+                   db: Session = Depends(get_db), fetch: vox.Fetch = Depends(get_vox_fetch)) -> Dict[str, Any]:
     site = site_of(db, ctx, site_id, MANAGE)
     i = _intercom(db, site, intercom_id)
     doors = _doors(db, site)
@@ -172,8 +195,15 @@ def patch_intercom(site_id: uuid.UUID, intercom_id: uuid.UUID, body: IntercomPat
     if "door_id" in changes:
         _door_at(doors, body.door_id)
     password = changes.pop("sip_password", None)
+    station = changes.pop("vox_station_id", None)
     for k, v in changes.items():
         setattr(i, k, v)
+    if station:                                   # chosen (or chosen again: copied afresh)
+        _station(db, ctx, i, station, fetch)
+        changes["vox_station_id"] = station
+    elif station == "":                           # let go: the SIP account stays as it is, typed in from now on
+        i.vox_station_id = ""
+        changes["vox_station_id"] = ""
     if password is not None:
         i.sip_password_sealed = crypto.seal(password) if password else ""
     _flush(db)

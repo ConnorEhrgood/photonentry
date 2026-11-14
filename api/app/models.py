@@ -358,5 +358,37 @@ class Intercom(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     last_fetch_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     last_fetch_ip: Mapped[str] = mapped_column(String(64), default="")
+    # Its door station in PhotonVox (docs/VOX.md): when set, the SIP account above is PhotonVox's, copied at once and every hour (app/vox.py).
+    vox_station_id: Mapped[str] = mapped_column(String(64), default="")
+    sip_synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     __table_args__ = (CheckConstraint("sip_transport in ('udp', 'tcp', 'tls')", name="ck_intercom_transport"),
                       CheckConstraint("mac ~ '^[0-9A-F]{12}$'", name="ck_intercom_mac"))
+
+
+class VoxLink(Base):
+    """An organization's connection to PhotonVox (docs/VOX.md): the integration token its PhotonVox admin made (scope vox:entry), sealed.
+    PhotonVox's address is PhotonEntry's configuration (VOX_API_URL), never the organization's."""
+    __tablename__ = "vox_link"
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUIDT, primary_key=True)
+    token_sealed: Mapped[str] = mapped_column(Text)
+    token_hint: Mapped[str] = mapped_column(String(12), default="")
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUIDT)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_ok_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str] = mapped_column(Text, default="")
+    last_error_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class CallMatch(Base):
+    """Who answered the call a door was opened from (an "Opened from the intercom" event), as PhotonVox's call records say. `found`: answered_*
+    are set; `none`: PhotonVox had no answered call then; asked again until it is settled (app/vox.py match_calls)."""
+    __tablename__ = "call_match"
+    controller_id: Mapped[uuid.UUID] = mapped_column(UUIDT, primary_key=True)
+    seq: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUIDT, index=True)
+    state: Mapped[str] = mapped_column(String(10))                       # found | none
+    call_id: Mapped[str] = mapped_column(String(128), default="")
+    extension: Mapped[str] = mapped_column(String(32), default="")
+    name: Mapped[str] = mapped_column(String(128), default="")
+    person_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUIDT)
+    matched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

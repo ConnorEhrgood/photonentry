@@ -95,6 +95,11 @@ export interface DoorEvent {
   door: string | null
   cardholder_id: string | null
   cardholder: string | null
+  /** The API's own words and weight for the event (app/events.py); the page words the controller's topics itself and uses these for the rest. */
+  label?: string
+  severity?: 'info' | 'warning' | 'critical'
+  /** For "Opened from the intercom": who answered the call, from PhotonVox ("Ann Lee (101)"). */
+  answered_by?: string | null
   reason: string | null
   state: string | null
 }
@@ -147,6 +152,9 @@ export interface Intercom {
   sip_transport: 'udp' | 'tcp' | 'tls'
   sip_user: string
   sip_password_set: boolean
+  /** Its door station in PhotonVox: the SIP account above is that station's, kept current by PhotonEntry. */
+  vox_station_id: string
+  sip_synced_at: string | null
   last_fetch_at: string | null
   last_fetch_ip: string
 }
@@ -156,4 +164,12 @@ export interface IntercomSetup {
   unlock_code: string
   admin_user: string
   admin_password: string
+}
+
+/** A PhotonVox door station, to choose for an intercom (never its SIP password). */
+export interface VoxStation {
+  id: string
+  name: string
+  site_id: string | null
+  extension: string
 }

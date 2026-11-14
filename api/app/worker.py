@@ -1,7 +1,8 @@
 """Background jobs. `python -m app.worker` runs them; keep it a single process.
 
 Now: keep the directory copy current (a periodic pull, so a lost notice delays a change and never loses it) and publish our role catalog to the
-directory; send the doors' events to PhotonGuard (app/guard.py). Later steps add visitor-pass mail and retention.
+directory; send the doors' events to PhotonGuard (app/guard.py); name who answered a door's call and keep the intercoms' SIP accounts as
+PhotonVox has them (app/vox.py, hourly). Later steps add visitor-pass mail and retention.
 """
 from __future__ import annotations
 
@@ -11,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
-from app import guard, sync
+from app import guard, sync, vox
 from app.config import settings
 from app.db import SystemSession
 from app.deps import get_directory
@@ -21,6 +22,7 @@ log = logging.getLogger("photonentry.worker")
 
 TICK_S = 15
 PUBLISH_RETRY_S = 600
+VOX_SYNC_S = 3600
 HEARTBEAT_FILE = os.environ.get("WORKER_HEARTBEAT_FILE", "/tmp/worker.ok")   # the container healthcheck reads its age
 
 
@@ -41,6 +43,12 @@ def tick(state: dict, clock: Callable[[], float] = time.monotonic) -> None:
     sent = run_job("guard", lambda db: sum(r.sent for r in guard.forward_all(db, guard.http_post, utcnow())))
     if sent:
         log.info("guard: sent %d event(s)", sent)
+    sync_sip = now - state.get("vox_sync", float("-inf")) >= VOX_SYNC_S
+    if sync_sip:
+        state["vox_sync"] = now
+    done = run_job("vox", lambda db: vox.run_all(db, vox.http_get, utcnow(), sync_sip))
+    if done and any(done):
+        log.info("vox: %d intercom(s) given a new SIP account, %d call(s) matched", *done)
     directory = get_directory()
     if directory is None:
         return

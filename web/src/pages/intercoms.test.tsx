@@ -15,10 +15,11 @@ const DOORS: Door[] = [
 ]
 const ic = (o: Partial<Intercom> = {}): Intercom => ({ id: 'i1', name: 'Front intercom', door_id: 'd1', door: 'Main entrance', model: 'S532', mac: '0C:11:05:AA:BB:CC',
   relay_address: '', relay_target: '10.152.0.20:8742', sip_server: 'vox.example', sip_port: 5061, sip_transport: 'tls', sip_user: 'door-101',
-  sip_password_set: true, last_fetch_at: null, last_fetch_ip: '', ...o })
+  sip_password_set: true, vox_station_id: '', sip_synced_at: null, last_fetch_at: null, last_fetch_ip: '', ...o })
 const SETUP = { provision_url: 'https://link.entry.photonind.com/provision/v1/tok/', unlock_code: '#', admin_user: 'admin', admin_password: 'pw-admin' }
 const app = (routes: Record<string, unknown>, me = meWith(OWNER)) => renderApp(<Routes><Route path="*" element={<App />} /></Routes>, {
-  route: '/doors', me, routes: { [`GET ${T}/sites`]: SITES, [`GET ${S}/doors`]: DOORS, [`GET ${S}/schedules`]: [], ...routes },
+  route: '/doors', me, routes: { [`GET ${T}/sites`]: SITES, [`GET ${S}/doors`]: DOORS, [`GET ${S}/schedules`]: [],
+    [`GET ${T}/integrations/vox/stations`]: () => new Response(JSON.stringify({ detail: 'Not found' }), { status: 404 }), ...routes },
 })
 
 describe('Intercoms', () => {
@@ -87,6 +88,36 @@ describe('Intercoms', () => {
     expect(await screen.findByText(/has not said where the intercom reaches it/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Setup values' }))
     expect(await within(screen.getByRole('dialog')).findByText(/Not allowed/)).toBeInTheDocument()
+  })
+
+  it('with PhotonVox connected, a door station gives the intercom its phone account', async () => {
+    const user = userEvent.setup()
+    let list: Intercom[] = [ic()]
+    const { calls } = app({
+      [`GET ${S}/intercoms`]: () => list,
+      [`GET ${T}/integrations/vox/stations`]: [{ id: 'ds-1', name: 'Front door', site_id: null, extension: '901' }],
+      [`PATCH ${S}/intercoms/i1`]: () => { list = [ic({ vox_station_id: 'ds-1' })]; return list[0] },
+    })
+    await user.click(await screen.findByRole('button', { name: 'Change' }))
+    const dialog = screen.getByRole('dialog', { name: 'Change Front intercom' })
+    expect(within(dialog).getByLabelText('Server')).toBeInTheDocument()
+    await user.selectOptions(await within(dialog).findByLabelText('Door station in PhotonVox'), 'ds-1')
+    expect(within(dialog).queryByLabelText('Server')).not.toBeInTheDocument()
+    expect(within(dialog).getByText(/comes from PhotonVox/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await screen.findByText('Front intercom')
+    const patch = calls.find((c) => c.method === 'PATCH')?.body as Record<string, unknown>
+    expect(patch.vox_station_id).toBe('ds-1')
+    for (const k of ['sip_server', 'sip_user', 'sip_password', 'sip_port']) expect(patch).not.toHaveProperty(k)
+  })
+
+  it('says when PhotonVox cannot list its door stations, and still lets the account be typed', async () => {
+    const user = userEvent.setup()
+    app({ [`GET ${S}/intercoms`]: [ic()],
+      [`GET ${T}/integrations/vox/stations`]: () => new Response(JSON.stringify({ detail: { code: 'vox_refused', detail: 'PhotonVox could not be reached' } }), { status: 502 }) })
+    await user.click(await screen.findByRole('button', { name: 'Change' }))
+    expect(await screen.findByText(/can’t be listed right now/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Server')).toBeInTheDocument()
   })
 
   it('operators do not see intercoms', async () => {

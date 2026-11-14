@@ -28,6 +28,11 @@ const REASONS: Record<string, string> = {
 /** An event in a few words, and how it should look: denied and forced are warnings, the rest information. */
 export function describe(e: DoorEvent): { text: string; tone: 'ok' | 'info' | 'warning' | 'error' } {
   const t = e.topic
+  // entry-link's own events for the intercoms (unlock from a call, tamper, calls): the API's words.
+  if (t.startsWith('PhotonEntry/') && e.label) {
+    const tone = e.severity === 'critical' ? 'error' : e.severity === 'warning' ? 'warning' : t.endsWith('/Unlock') ? 'ok' : 'info'
+    return { text: e.label, tone }
+  }
   if (t === 'AccessControl/AccessGranted/Credential') return { text: 'Access granted', tone: 'ok' }
   if (t === 'AccessControl/AccessGranted/Anonymous') return { text: 'Exit button', tone: 'info' }
   if (t === 'AccessControl/AccessTaken/Credential') return { text: 'Door opened after access', tone: 'info' }

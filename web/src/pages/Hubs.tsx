@@ -19,7 +19,7 @@ function Hub({ title, tabs }: { title: string; tabs: { to: string; label: string
 export function settingsTabs(can: (capability: string) => boolean): { to: string; label: string }[] {
   const tabs = []
   if (can('entry.members.view')) tabs.push({ to: 'team', label: 'Team' })
-  if (can('entry.config.manage')) tabs.push({ to: 'guard', label: 'PhotonGuard' }, { to: 'console', label: 'PhotonConsole' })
+  if (can('entry.config.manage')) tabs.push({ to: 'guard', label: 'PhotonGuard' }, { to: 'console', label: 'PhotonConsole' }, { to: 'vox', label: 'PhotonVox' })
   if (can('entry.audit.view')) tabs.push({ to: 'audit', label: 'Audit trail' })
   return tabs
 }

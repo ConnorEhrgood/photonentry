@@ -1,8 +1,10 @@
-"""PhotonGuard and PhotonConsole, set up from PhotonEntry (Settings), and the PhotonConsole feed itself.
+"""PhotonGuard, PhotonConsole and PhotonVox, set up from PhotonEntry (Settings), and the PhotonConsole feed itself.
 
 - **Guard:** an admin pastes the ingest token their Guard admin made (scope `guard:events:write`); PhotonEntry seals it and the worker sends the
   doors' events (app/guard.py). Each door's binding key is listed so the Guard admin can bind it to the cameras that see the door. A test sends
   one event that no camera shows.
+- **Vox:** an admin pastes the integration token their PhotonVox admin made (scope `vox:entry`); its door stations can then be chosen for the
+  intercoms, and the worker names who answered a door's call (app/vox.py, docs/VOX.md).
 - **Console:** an admin makes a feed token for a PhotonConsole data source (shown once); Console polls `GET /integrations/console/v1/doors`.
 """
 from __future__ import annotations
@@ -17,11 +19,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import consolefeed, crypto, guard
+from app import consolefeed, crypto, guard, vox
 from app.config import settings
 from app.db import SystemSession, get_db
 from app.deps import Ctx, require
-from app.models import ConsoleFeedToken, Door, GuardLink, Site
+from app.models import ConsoleFeedToken, Door, GuardLink, Intercom, Site, VoxLink
 from app.routes.common import log, not_found, problem
 
 router = APIRouter()
@@ -30,6 +32,10 @@ MANAGE = "entry.config.manage"
 
 def get_guard_post() -> guard.Post:        # overridden in tests
     return guard.http_post
+
+
+def get_vox_fetch() -> vox.Fetch:          # overridden in tests
+    return vox.http_get
 
 
 def _now() -> datetime:
@@ -112,6 +118,70 @@ def test_guard(ctx: Ctx = Depends(require(MANAGE)), db: Session = Depends(get_db
     if code >= 300:
         return {"ok": False, "detail": f"PhotonGuard answered HTTP {code}."}
     return {"ok": True, "detail": "PhotonGuard accepted a test event."}
+
+
+# ---- Vox ----
+
+
+class VoxIn(BaseModel):
+    token: str = Field(min_length=20, max_length=400, pattern=r"^[A-Za-z0-9._~+/=-]+$")
+
+
+def _vox_view(db: Session, ctx: Ctx, link: Optional[VoxLink]) -> Dict[str, Any]:
+    used = db.execute(select(Intercom).where(Intercom.tenant_id == ctx.tenant_id, Intercom.vox_station_id != "")).scalars().all()
+    return {"connected": link is not None, "token_hint": link.token_hint if link else None,
+            "last_ok_at": link.last_ok_at.isoformat() if link and link.last_ok_at else None, "last_error": link.last_error if link else "",
+            "last_error_at": link.last_error_at.isoformat() if link and link.last_error_at else None, "vox_api_url": settings.vox_api_url,
+            "intercoms": len(used)}
+
+
+@router.get("/tenants/{tenant_id}/integrations/vox")
+def get_vox(ctx: Ctx = Depends(require(MANAGE)), db: Session = Depends(get_db)) -> Dict[str, Any]:
+    return _vox_view(db, ctx, db.get(VoxLink, ctx.tenant_id))
+
+
+@router.put("/tenants/{tenant_id}/integrations/vox")
+def connect_vox(body: VoxIn, ctx: Ctx = Depends(require(MANAGE)), db: Session = Depends(get_db), fetch: vox.Fetch = Depends(get_vox_fetch)) -> Dict[str, Any]:
+    """Checked before it is kept: PhotonVox must accept the token and answer for this organization."""
+    try:
+        found = vox.stations(fetch, body.token, ctx.tenant_id)
+    except vox.VoxError as e:
+        raise problem({"code": "vox_refused", "detail": str(e)})
+    link = db.get(VoxLink, ctx.tenant_id)
+    hint = "…" + body.token[-4:]
+    if link is None:
+        link = VoxLink(tenant_id=ctx.tenant_id, token_sealed=crypto.seal(body.token), token_hint=hint, created_by=ctx.who.id)
+        db.add(link)
+    else:
+        link.token_sealed, link.token_hint = crypto.seal(body.token), hint
+    link.last_ok_at, link.last_error, link.last_error_at = _now(), "", None
+    log(db, ctx, "vox.connect", target_type="integration", target_id="vox", token=hint, stations=len(found))
+    db.commit()
+    return _vox_view(db, ctx, link)
+
+
+@router.delete("/tenants/{tenant_id}/integrations/vox", status_code=204)
+def disconnect_vox(ctx: Ctx = Depends(require(MANAGE)), db: Session = Depends(get_db)) -> None:
+    """The intercoms keep the SIP accounts they have (calls go on); they are no longer refreshed, and calls are no longer matched."""
+    link = db.get(VoxLink, ctx.tenant_id)
+    if link is None:
+        raise not_found()
+    db.delete(link)
+    log(db, ctx, "vox.disconnect", target_type="integration", target_id="vox")
+    db.commit()
+
+
+@router.get("/tenants/{tenant_id}/integrations/vox/stations")
+def vox_stations(ctx: Ctx = Depends(require(MANAGE)), db: Session = Depends(get_db), fetch: vox.Fetch = Depends(get_vox_fetch)) -> List[Dict[str, Any]]:
+    """The organization's door stations, to choose one for an intercom. Never their SIP passwords."""
+    link = db.get(VoxLink, ctx.tenant_id)
+    if link is None:
+        raise not_found()
+    try:
+        found = vox.stations(fetch, crypto.unseal(link.token_sealed), ctx.tenant_id)
+    except vox.VoxError as e:
+        raise problem({"code": "vox_refused", "detail": str(e)}, 502)
+    return [{"id": s.id, "name": s.name, "site_id": str(s.site_id) if s.site_id else None, "extension": s.extension} for s in found]
 
 
 # ---- Console feed tokens ----

@@ -142,3 +142,47 @@ export function ConsoleSettingsPage() {
     </>
   )
 }
+
+interface VoxView { connected: boolean; token_hint: string | null; last_ok_at: string | null; last_error: string; last_error_at: string | null; vox_api_url: string; intercoms: number }
+
+/** PhotonVox: the intercoms' SIP accounts come from its door stations, and the door's events name who answered a call (docs/VOX.md). */
+export function VoxSettingsPage() {
+  const { api } = useAuth()
+  const { current } = useTenant()
+  const base = `/tenants/${current!.id}/integrations/vox`
+  const view = useLoad(() => api.get<VoxView>(base), [api, base])
+  const [token, setToken] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  if (view.error) return <ErrorText>{view.error}</ErrorText>
+  if (!view.data) return <Loading what="the PhotonVox connection" />
+  const v = view.data
+  const run = async (what: () => Promise<unknown>) => {
+    setError(null)
+    try { await what(); await view.reload() } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
+  }
+  const state = !v.connected ? <StatusBadge tone="info">Not connected</StatusBadge>
+    : v.last_error ? <StatusBadge tone="error">Needs attention</StatusBadge> : <StatusBadge tone="ok">Connected</StatusBadge>
+  return (
+    <>
+      <PageHeader title="PhotonVox" as="h2" />
+      <section className="ph-card" aria-labelledby="vox-h">
+        <h3 id="vox-h">Door stations and calls {state}</h3>
+        <p className="ph-hint">Each intercom can be one of PhotonVox’s door stations: it gets that station’s phone account, kept current, and when someone
+          opens a door from a call the door’s events say who answered. Make an integration token for PhotonEntry in PhotonVox (it needs “vox:entry”) and paste it here.</p>
+        {v.connected && <p>Token {v.token_hint}; {v.intercoms} intercom{v.intercoms === 1 ? '' : 's'} on door stations{v.last_ok_at ? `; last heard from ${ago(v.last_ok_at)}` : ''}.</p>}
+        {v.last_error && <p className="ph-banner ph-banner-error" role="alert">{v.last_error}{v.last_error_at ? ` (${ago(v.last_error_at)})` : ''}. The intercoms keep the accounts they have.</p>}
+        <div className="ph-field">
+          <label htmlFor="vox-token">{v.connected ? 'Replace the integration token' : 'Integration token'}</label>
+          <input id="vox-token" className="ph-input" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} />
+        </div>
+        <ErrorText>{error}</ErrorText>
+        <div className="ph-actions">
+          <button className="ph-btn" disabled={token.trim().length < 20} onClick={() => void run(async () => { await api.put(base, { token: token.trim() }); setToken('') })}>
+            {v.connected ? 'Replace' : 'Connect'}
+          </button>
+          {v.connected && <ConfirmButton danger label="Disconnect" confirm="Disconnect? The intercoms keep their phone accounts." onConfirm={() => run(() => api.del(base))} />}
+        </div>
+      </section>
+    </>
+  )
+}

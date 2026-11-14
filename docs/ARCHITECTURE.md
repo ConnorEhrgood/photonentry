@@ -683,6 +683,9 @@ Answered 2026-11-13: the bench kit (not now), Axis contact (not now; the signing
 
 ## 14. Proposed changes to other documents (not applied)
 
+- **PhotonVox** (docs/VOX.md, contract/vox/; sent to v1 2026-11-14): the `door_station` extension kind, integration tokens with scope
+  `vox:entry`, `GET /integrations/entry/v1/door-stations` and `/door-calls`, and the unlock code's DTMF reaching the intercom.
+
 - **Suite ARCHITECTURE:**
   - §1: a PhotonEntry row (planned).
   - §5 roles: owner, admin, operator, viewer.

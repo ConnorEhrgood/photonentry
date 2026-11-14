@@ -331,3 +331,30 @@ home and the switcher open at the three sizes, looked at.
 
 **Found on the way:** a second `@app.middleware("http")` made coverage lose the link service's route code after its first `await` (the gate
 caught it). The summary's CORS is now plain ASGI, added outside CORSMiddleware so the account app's preflight reaches it first.
+
+## 2026-11-14: Step 5, part 2: PhotonVox door stations and call records (PhotonEntry's side)
+
+**The contract** (`contract/vox/`, `docs/VOX.md`), proposed to v1 for PhotonVox (nothing changed in its repo): PhotonVox owns door stations
+(an extension kind, `door_station`) and their call flows; a per-organization integration token with a new scope `vox:entry` (it carries SIP
+passwords); `GET /integrations/entry/v1/door-stations` and `/door-calls?station=&at=&window_s=`, each naming the organization; the unlock code
+`#` must reach the intercom as RFC 2833 on every call path.
+
+**Built** (`app/vox.py`, CRITICAL; migration 0005):
+- **Settings > PhotonVox:** an admin pastes the token; PhotonEntry checks it with PhotonVox before keeping it (sealed). PhotonVox's address is
+  configuration (`VOX_API_URL`), never an organization's.
+- **An intercom's door station:** chosen from PhotonVox's list (never its password shown); its SIP account is copied into the intercom
+  (sealed) at once and every hour, so the intercom's settings never wait on PhotonVox. A station PhotonVox no longer has is reported, and the
+  intercom keeps its account.
+- **Who answered:** after each "Opened from the intercom", the worker asks PhotonVox for that station's call at that moment (after 20 s, so the
+  record has landed; given up after 10 minutes) and the door's events say "Answered by Ann Lee (101)". PhotonVox away only delays the name.
+- Every answer is checked against the contract and must name the organization the token was connected for; anything else is a sentence for
+  the admin, never data.
+- **Web:** the PhotonVox tab, the door-station picker (the typed SIP fields go when a station is chosen), and intercom events in the API's own
+  words.
+
+**Verified:** 497 Python tests (the client against the contract's samples and every refusal; on Postgres: connecting, the picker, the hourly
+copy and a rotated password, matching including PhotonVox away, row-level security) and 175 web tests; 24 CRITICAL modules at 100%.
+Screenshots of the tab and the picker, looked at.
+
+**Not verified:** against PhotonVox itself (its side is not built). **A flaky web test** (schedule editing) failed once under coverage load
+and passed on its own twice: a timing margin to widen if it recurs.

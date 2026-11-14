@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import type { Door, Intercom, IntercomSetup } from '../api/types'
+import { ApiError } from '../api/client'
+import type { Door, Intercom, IntercomSetup, VoxStation } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { ConfirmButton, ErrorText, Loading, Modal, StatusBadge } from '../components/ui'
 import { ago } from '../lib/format'
@@ -74,18 +75,30 @@ export function IntercomDialog({ base, doors, intercom, onClose, onSaved }: {
   base: string; doors: Door[]; intercom: Intercom | null; onClose: () => void; onSaved: (made: Intercom | null) => Promise<void>
 }) {
   const { api } = useAuth()
+  // PhotonVox's door stations, when the organization has connected it (404: not connected; the account is then typed in).
+  const stations = useLoad(async () => {
+    try { return await api.get<VoxStation[]>(`${base.split('/sites/')[0]}/integrations/vox/stations`) } catch (e) {
+      if (e instanceof ApiError && e.status === 404) return null
+      throw e
+    }
+  }, [api, base])
   const [f, setF] = useState({
     name: intercom?.name ?? '', door_id: intercom?.door_id ?? doors[0]?.id ?? '', model: intercom?.model ?? 'S532', mac: intercom?.mac ?? '',
     sip_server: intercom?.sip_server ?? '', sip_port: String(intercom?.sip_port ?? 5061), sip_transport: intercom?.sip_transport ?? 'tls',
-    sip_user: intercom?.sip_user ?? '', sip_password: '', relay_address: intercom?.relay_address ?? '',
+    sip_user: intercom?.sip_user ?? '', sip_password: '', relay_address: intercom?.relay_address ?? '', vox_station_id: intercom?.vox_station_id ?? '',
   })
+  const fromVox = !!f.vox_station_id
   const [error, setError] = useState<string | null>(null)
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value })
   const save = async () => {
     setError(null)
-    const { sip_password, sip_port, ...rest } = f
-    const body: Record<string, unknown> = { ...rest, name: f.name.trim(), sip_port: Number(sip_port) }
-    if (!intercom || sip_password) body.sip_password = sip_password      // unchanged unless typed
+    const { sip_password, sip_port, sip_server, sip_transport, sip_user, ...rest } = f
+    const body: Record<string, unknown> = { ...rest, name: f.name.trim() }
+    if (!fromVox) {                                                       // a door station's account is PhotonVox's, never typed
+      Object.assign(body, { sip_server, sip_transport, sip_user, sip_port: Number(sip_port) })
+      if (!intercom || sip_password) body.sip_password = sip_password    // unchanged unless typed
+    }
+    if (!intercom && !fromVox) delete body.vox_station_id
     try {
       if (intercom) { await api.patch(`${base}/intercoms/${intercom.id}`, body); await onSaved(null) }
       else await onSaved(await api.post<Intercom>(`${base}/intercoms`, body))
@@ -106,20 +119,33 @@ export function IntercomDialog({ base, doors, intercom, onClose, onSaved }: {
           <span className="ph-hint">On the label on its back, or its web page.</span></div>
       </div>
       <fieldset className="pe-fieldset">
-        <legend>Calls (its SIP account in PhotonVox)</legend>
-        <div className="pe-row">
-          <div className="ph-field"><label htmlFor="ic-sip-server">Server</label><input id="ic-sip-server" className="ph-input" value={f.sip_server} onChange={set('sip_server')} /></div>
-          <div className="ph-field"><label htmlFor="ic-sip-port">Port</label><input id="ic-sip-port" type="number" min={1} max={65535} className="ph-input" value={f.sip_port} onChange={set('sip_port')} /></div>
-          <div className="ph-field"><label htmlFor="ic-sip-transport">Transport</label>
-            <select id="ic-sip-transport" className="ph-input" value={f.sip_transport} onChange={set('sip_transport')}>
-              <option value="tls">TLS</option><option value="tcp">TCP</option><option value="udp">UDP</option></select></div>
-        </div>
-        <div className="pe-row">
-          <div className="ph-field"><label htmlFor="ic-sip-user">User</label><input id="ic-sip-user" className="ph-input" value={f.sip_user} onChange={set('sip_user')} /></div>
-          <div className="ph-field"><label htmlFor="ic-sip-pass">Password</label>
-            <input id="ic-sip-pass" type="password" autoComplete="new-password" className="ph-input" value={f.sip_password} onChange={set('sip_password')}
-              placeholder={intercom?.sip_password_set ? 'Unchanged' : ''} /></div>
-        </div>
+        <legend>Calls</legend>
+        {stations.data && (
+          <div className="ph-field"><label htmlFor="ic-station">Door station in PhotonVox</label>
+            <select id="ic-station" className="ph-input" value={f.vox_station_id} onChange={set('vox_station_id')}>
+              <option value="">None: type its phone account</option>
+              {stations.data.map((st) => <option key={st.id} value={st.id}>{st.name} ({st.extension})</option>)}
+            </select>
+            {fromVox && <span className="ph-hint">Its phone account comes from PhotonVox and is kept current.</span>}</div>
+        )}
+        {stations.error && <p className="ph-hint" role="status">PhotonVox’s door stations can’t be listed right now: {stations.error}</p>}
+        {!fromVox && (
+          <>
+            <div className="pe-row">
+              <div className="ph-field"><label htmlFor="ic-sip-server">Server</label><input id="ic-sip-server" className="ph-input" value={f.sip_server} onChange={set('sip_server')} /></div>
+              <div className="ph-field"><label htmlFor="ic-sip-port">Port</label><input id="ic-sip-port" type="number" min={1} max={65535} className="ph-input" value={f.sip_port} onChange={set('sip_port')} /></div>
+              <div className="ph-field"><label htmlFor="ic-sip-transport">Transport</label>
+                <select id="ic-sip-transport" className="ph-input" value={f.sip_transport} onChange={set('sip_transport')}>
+                  <option value="tls">TLS</option><option value="tcp">TCP</option><option value="udp">UDP</option></select></div>
+            </div>
+            <div className="pe-row">
+              <div className="ph-field"><label htmlFor="ic-sip-user">User</label><input id="ic-sip-user" className="ph-input" value={f.sip_user} onChange={set('sip_user')} /></div>
+              <div className="ph-field"><label htmlFor="ic-sip-pass">Password</label>
+                <input id="ic-sip-pass" type="password" autoComplete="new-password" className="ph-input" value={f.sip_password} onChange={set('sip_password')}
+                  placeholder={intercom?.sip_password_set ? 'Unchanged' : ''} /></div>
+            </div>
+          </>
+        )}
       </fieldset>
       <details>
         <summary>Advanced</summary>

@@ -6,3 +6,4 @@ htmlcov/
 .env
 acap/entry-link/build/
 *.o
+.claude/settings.local.json

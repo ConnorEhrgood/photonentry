@@ -46,6 +46,8 @@ class Settings(BaseSettings):
 
     # PhotonGuard's API, where door events go (ARCHITECTURE §9.1). Ours to set, never an organization's (no sender to a URL a user typed).
     guard_api_url: str = "https://api.guard.photonind.com"
+    # PhotonVox's API, for door stations and call records (docs/VOX.md). Ours to set, never an organization's.
+    vox_api_url: str = "https://api.vox.photonind.com"
     # This web app's address, for links back from Guard's events to PhotonEntry's.
     web_url: str = "https://entry.photonind.com"
 

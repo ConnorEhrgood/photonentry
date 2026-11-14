@@ -71,3 +71,39 @@ describe('PhotonConsole settings', () => {
     expect(screen.queryByText('Old')).not.toBeInTheDocument()
   })
 })
+
+describe('PhotonVox settings', () => {
+  const vox = (o = {}) => ({ connected: true, token_hint: '…cdef', last_ok_at: new Date().toISOString(), last_error: '', last_error_at: null,
+    vox_api_url: 'https://api.vox.photonind.com', intercoms: 2, ...o })
+
+  it('connects with a token, says when something needs attention, and disconnects', async () => {
+    const user = userEvent.setup()
+    let current = vox({ connected: false, token_hint: null, last_ok_at: null, intercoms: 0 })
+    const { calls } = app('/settings/vox', {
+      [`GET ${T}/integrations/vox`]: () => current,
+      [`PUT ${T}/integrations/vox`]: () => { current = vox({ last_error: 'PhotonVox no longer has the door station of Gate', last_error_at: new Date().toISOString() }); return current },
+      [`DELETE ${T}/integrations/vox`]: () => { current = vox({ connected: false, token_hint: null }); return null },
+    })
+    expect(await screen.findByText('Not connected')).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Integration token'), 'pvx_entry_token_0123456789abcdef')
+    await user.click(screen.getByRole('button', { name: 'Connect' }))
+    expect(await screen.findByText('Needs attention')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('no longer has the door station of Gate')
+    expect(screen.getByText(/2 intercoms on door stations/)).toBeInTheDocument()
+    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ token: 'pvx_entry_token_0123456789abcdef' })
+    await user.click(screen.getByRole('button', { name: 'Disconnect' }))
+    await user.click(within(screen.getByRole('group', { name: /Disconnect\?/ })).getByRole('button', { name: 'Yes' }))
+    expect(await screen.findByText('Not connected')).toBeInTheDocument()
+  })
+
+  it('a refused token is said plainly', async () => {
+    const user = userEvent.setup()
+    app('/settings/vox', {
+      [`GET ${T}/integrations/vox`]: vox({ connected: false, token_hint: null }),
+      [`PUT ${T}/integrations/vox`]: () => new Response(JSON.stringify({ detail: { code: 'vox_refused', detail: 'PhotonVox refused the token' } }), { status: 422 }),
+    })
+    await user.type(await screen.findByLabelText('Integration token'), 'pvx_entry_token_0123456789abcdef')
+    await user.click(screen.getByRole('button', { name: 'Connect' }))
+    expect(await screen.findByText(/PhotonVox refused the token/)).toBeInTheDocument()
+  })
+})
